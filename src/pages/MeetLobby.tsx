@@ -17,14 +17,16 @@ export default function MeetLobby() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [copied, setCopied] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [sessionNotFound, setSessionNotFound] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // Server-side: verify teacher owns the session
+  // Server-side: verify access
   useEffect(() => {
     if (!roomCode || !user) return;
 
     const checkAccess = async () => {
       if (isTeacher) {
+        // Teachers: verify they own the session
         const { data: session } = await supabase
           .from("sessions")
           .select("teacher_id")
@@ -33,6 +35,18 @@ export default function MeetLobby() {
 
         if (session && session.teacher_id !== user.id) {
           setAccessDenied(true);
+        }
+      } else {
+        // Students: verify an active session exists with this code
+        const { data: session } = await supabase
+          .from("sessions")
+          .select("id")
+          .eq("room_code", roomCode)
+          .eq("status", "active")
+          .maybeSingle();
+
+        if (!session) {
+          setSessionNotFound(true);
         }
       }
       setChecking(false);
