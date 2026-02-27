@@ -80,8 +80,9 @@ export default function BuddyOverlay({ question, difficulty, enabled, onAnswer, 
                 {question.options.map((opt) => (
                   <button
                     key={opt}
-                    onClick={() => handleSubmit(opt)}
-                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors font-medium"
+                    onClick={() => !readOnly && handleSubmit(opt)}
+                    disabled={readOnly}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors font-medium ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
                     {opt}
                   </button>
