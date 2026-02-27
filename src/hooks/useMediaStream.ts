@@ -10,26 +10,41 @@ export function useMediaStream(options: UseMediaStreamOptions = { video: true, a
   const [videoEnabled, setVideoEnabled] = useState(options.video ?? true);
   const [audioEnabled, setAudioEnabled] = useState(options.audio ?? true);
   const [error, setError] = useState<string | null>(null);
+  const [isInIframe, setIsInIframe] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const acquire = useCallback(() => {
+    setError(null);
     navigator.mediaDevices
       .getUserMedia({ video: options.video, audio: options.audio })
       .then((s) => {
-        if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = s;
         setStream(s);
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || "Camera/mic access denied");
+        const inIframe = window.self !== window.top;
+        setIsInIframe(inIframe);
+        if (inIframe) {
+          setError("Camera/mic blocked by iframe sandbox. Open in a new tab to use your camera.");
+        } else {
+          setError(err.message || "Camera/mic access denied");
+        }
       });
+  }, [options.video, options.audio]);
 
+  useEffect(() => {
+    acquire();
     return () => {
-      cancelled = true;
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
+
+  const retry = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setStream(null);
+    acquire();
+  }, [acquire]);
 
   const toggleVideo = useCallback(() => {
     const tracks = streamRef.current?.getVideoTracks();
@@ -49,5 +64,5 @@ export function useMediaStream(options: UseMediaStreamOptions = { video: true, a
     }
   }, [audioEnabled]);
 
-  return { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error };
+  return { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error, isInIframe, retry };
 }

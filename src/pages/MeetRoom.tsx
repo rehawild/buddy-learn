@@ -457,6 +457,27 @@ export default function MeetRoom() {
                     <div className="absolute bottom-14 right-4 w-36 h-24 rounded-lg overflow-hidden border-2 border-border shadow-lg bg-meet-bar z-10">
                       {videoEnabled && stream ? (
                         <video ref={selfVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+                      ) : mediaError ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-[9px] text-destructive p-1.5 gap-1 text-center">
+                          <span>{isInIframe ? "Open in new tab" : "Camera error"}</span>
+                          {isInIframe ? (
+                            <a
+                              href={window.location.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-0.5 rounded bg-primary text-primary-foreground font-semibold hover:opacity-90"
+                            >
+                              Open
+                            </a>
+                          ) : (
+                            <button
+                              onClick={retryMedia}
+                              className="px-2 py-0.5 rounded bg-primary text-primary-foreground font-semibold hover:opacity-90"
+                            >
+                              Retry
+                            </button>
+                          )}
+                        </div>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
                           Camera off
