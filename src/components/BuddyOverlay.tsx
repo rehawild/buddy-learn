@@ -8,6 +8,7 @@ interface BuddyOverlayProps {
   enabled: boolean;
   onAnswer: (correct: boolean) => void;
   onDismiss: () => void;
+  readOnly?: boolean;
 }
 
 export default function BuddyOverlay({ question, difficulty, enabled, onAnswer, onDismiss }: BuddyOverlayProps) {
