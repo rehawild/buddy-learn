@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Eye, Users } from "lucide-react";
+import { useMediaStream } from "@/hooks/useMediaStream";
 import { fakeParticipants } from "@/data/participants";
 import { lessons, type Question } from "@/data/lessons";
 import ParticipantTile from "@/components/ParticipantTile";
@@ -27,8 +28,15 @@ export default function MeetRoom() {
   const { slides: uploadedSlides, loading: slidesLoading, presentationTitle } = useSessionSlides(roomCode);
   const hasUploadedSlides = uploadedSlides && uploadedSlides.length > 0;
 
-  const [micOn, setMicOn] = useState(true);
-  const [cameraOn, setCameraOn] = useState(true);
+  // Real camera & mic
+  const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio } = useMediaStream();
+  const selfVideoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (selfVideoRef.current && stream) {
+      selfVideoRef.current.srcObject = stream;
+    }
+  }, [stream]);
   const [presenting, setPresenting] = useState(!isViewer);
   const [sidePanel, setSidePanel] = useState<"chat" | "people" | null>(null);
   const [handRaised, setHandRaised] = useState(false);
@@ -193,6 +201,7 @@ export default function MeetRoom() {
   };
 
   const leaveCall = () => {
+    stream?.getTracks().forEach((t) => t.stop());
     if (presenting && results.total > 0) {
       navigate("/recap", { state: { lessonTitle: slideTitle, ...results, concepts: results.concepts.slice(0, 3) } });
     } else {
@@ -444,11 +453,21 @@ export default function MeetRoom() {
                         readOnly={isViewer}
                       />
                     )}
+                    {/* Self-view PIP */}
+                    <div className="absolute bottom-14 right-4 w-36 h-24 rounded-lg overflow-hidden border-2 border-border shadow-lg bg-meet-bar z-10">
+                      {videoEnabled && stream ? (
+                        <video ref={selfVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                          Camera off
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="h-full grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
                     {fakeParticipants.map((p) => (
-                      <ParticipantTile key={p.id} participant={{ ...p, ...(p.isSelf ? { isCameraOff: !cameraOn, isMuted: !micOn } : {}) }} size="large" speaking={p.id === "p4"} />
+                      <ParticipantTile key={p.id} participant={{ ...p, ...(p.isSelf ? { isCameraOff: !videoEnabled, isMuted: !audioEnabled } : {}) }} size="large" speaking={p.id === "p4"} />
                     ))}
                   </div>
                 )}
@@ -472,10 +491,10 @@ export default function MeetRoom() {
 
       {/* Bottom bar */}
       <MeetBottomBar
-        micOn={micOn}
-        onToggleMic={() => setMicOn((p) => !p)}
-        cameraOn={cameraOn}
-        onToggleCamera={() => setCameraOn((p) => !p)}
+        micOn={audioEnabled}
+        onToggleMic={toggleAudio}
+        cameraOn={videoEnabled}
+        onToggleCamera={toggleVideo}
         handRaised={handRaised}
         onToggleHand={() => setHandRaised((p) => !p)}
         presenting={presenting}
