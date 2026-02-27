@@ -53,7 +53,7 @@ export default function Recap() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/present")}
+            onClick={() => navigate("/")}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
           >
             <RotateCcw className="w-4 h-4" /> Try Again

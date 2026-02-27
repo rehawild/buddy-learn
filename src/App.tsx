@@ -22,6 +22,7 @@ const App = () => (
           <Route path="/lobby" element={<MeetLobby />} />
           <Route path="/meet" element={<MeetRoom />} />
           <Route path="/recap" element={<Recap />} />
+          <Route path="/present" element={<MeetHome />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

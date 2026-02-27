@@ -1,30 +1,49 @@
 
 
-## Fix: Wire up broken routes and verify real-time sync works
+## Plan: Real-time Screen Share Presentation with 2-5 People
 
-### Problem
-- User is on `/present` which doesn't exist in the router — it's a 404
-- `Landing.tsx` and `Recap.tsx` navigate to `/present` instead of valid routes
-- The real-time sync code is already fully implemented but untested
+### Approach
+Use **Supabase Realtime** (Broadcast channel) to sync presentation state across participants. One person presents (controls slides + answers buddy questions), and others watch the same content update in real-time. No WebRTC video/audio needed.
 
-### Changes
+### How it works
+1. **Presenter** creates a "room" → gets a shareable room code
+2. **Viewers** enter the room code to join
+3. Presenter's slide navigation, buddy questions, and answers broadcast to all viewers in real-time via Supabase Realtime Broadcast
+4. Viewers see the presentation content update live (read-only view)
 
-**1. Fix broken route references**
-- `src/pages/Landing.tsx`: Change `navigate("/present")` → `navigate("/")`
-- `src/pages/Recap.tsx`: Change `navigate("/present")` → `navigate("/")`
+### Prerequisites
+- Enable **Lovable Cloud** (for Supabase Realtime — no database tables needed, just Broadcast channels)
 
-**2. Add `/present` as an alias route (optional alternative)**
-- In `App.tsx`, add `<Route path="/present" element={<MeetHome />} />` so `/present` lands on the home page
+### Implementation steps
 
-**3. No other changes needed**
-The Supabase Realtime Broadcast sync is already implemented:
-- Presenter broadcasts `{ lessonIdx, sectionIdx, activeQuestionIdx, buddyEnabled, difficulty }` on every state change
-- Viewer listens and mirrors state in real-time
-- Presence tracks connected participants
+1. **Create a shared room system**
+   - Generate random 6-char room codes
+   - Add "Create room" and "Join room" flows to MeetHome/MeetLobby
+   - Store room code + role (presenter/viewer) in route state
 
-### How to test
-1. Open two browser tabs
-2. Tab 1: Go to `/` → click "New meeting" → copy code → "Start meeting" → "Join now"
-3. Tab 2: Go to `/` → paste code → "Join" → "Join now"
-4. Tab 1 (presenter): Navigate slides — Tab 2 (viewer) should update in real-time
+2. **Add a Realtime sync hook** (`src/hooks/useRealtimeRoom.ts`)
+   - Connect to a Supabase Broadcast channel named by room code
+   - Presenter broadcasts: `{ lessonIdx, sectionIdx, activeQuestion, feedback, buddyEnabled, difficulty }`
+   - Viewers listen and mirror state locally
+
+3. **Update MeetRoom.tsx**
+   - If role = presenter: current behavior (controls slides, answers questions, broadcasts state changes)
+   - If role = viewer: render presentation content in read-only mode, state driven by broadcast messages
+   - Show participant count from Presence tracking
+
+4. **Update MeetHome.tsx**
+   - Add "Create room" button → generates code, navigates to `/lobby?room=ABC123&role=presenter`
+   - Add "Join with code" input → navigates to `/lobby?room=ABC123&role=viewer`
+
+5. **Update MeetLobby.tsx**
+   - Show room code prominently so presenter can share it
+   - "Join now" connects to the broadcast channel
+
+6. **Viewer-specific UI**
+   - Hide slide navigation controls (Next/Prev)
+   - Show "Presenter is controlling" indicator
+   - Buddy overlay visible but non-interactive (or optionally let viewers answer independently)
+
+### No database tables needed
+Supabase Broadcast is ephemeral — no persistence required for this MVP.
 
