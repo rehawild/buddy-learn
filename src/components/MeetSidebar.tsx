@@ -92,18 +92,11 @@ export default function MeetSidebar({ panel, onClose, roomCode, userName = "You"
                   <span className="text-xs text-muted-foreground capitalize">{p.role}</span>
                 </div>
               ))
-            : fakeParticipants.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/50 transition-colors">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-foreground flex-shrink-0"
-                    style={{ backgroundColor: p.color }}
-                  >
-                    {p.initials}
-                  </div>
-                  <span className="text-sm text-foreground flex-1 truncate">{p.isSelf ? "You" : p.name}</span>
-                  {p.isMuted && <span className="text-xs text-muted-foreground">Muted</span>}
-                </div>
-              ))}
+            : (
+              <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                No participants yet
+              </div>
+            )}
         </div>
       ) : (
         <>

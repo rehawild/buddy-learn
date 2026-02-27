@@ -98,6 +98,24 @@ export default function MeetLobby() {
     );
   }
 
+  if (sessionNotFound) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-4">
+        <AlertTriangle className="w-12 h-12 text-destructive" />
+        <h2 className="text-xl font-bold text-foreground">Session Not Found</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          No active session was found with code <span className="font-mono font-bold">{roomCode}</span>. Please check the code and try again.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+        >
+          Go back home
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-4xl flex flex-col lg:flex-row items-center gap-8">
