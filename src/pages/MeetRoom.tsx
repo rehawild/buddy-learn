@@ -489,9 +489,23 @@ export default function MeetRoom() {
                   </div>
                 ) : (
                   <div className="h-full grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
-                    {fakeParticipants.map((p) => (
-                      <ParticipantTile key={p.id} participant={{ ...p, ...(p.isSelf ? { isCameraOff: !videoEnabled, isMuted: !audioEnabled } : {}) }} size="large" speaking={p.id === "p4"} />
-                    ))}
+                    {realtimeParticipants.length > 0
+                      ? realtimeParticipants.map((p) => (
+                          <div key={p.id} className="rounded-xl bg-meet-surface border border-border flex items-center justify-center">
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="w-16 h-16 rounded-full bg-primary/30 flex items-center justify-center text-xl font-bold text-primary">
+                                {p.name.slice(0, 2).toUpperCase()}
+                              </span>
+                              <span className="text-sm text-foreground font-medium">{p.name}</span>
+                              <span className="text-xs text-muted-foreground capitalize">{p.role}</span>
+                            </div>
+                          </div>
+                        ))
+                      : (
+                        <div className="col-span-full flex items-center justify-center text-muted-foreground">
+                          No participants yet
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
