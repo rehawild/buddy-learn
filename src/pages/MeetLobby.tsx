@@ -1,17 +1,26 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Mic, MicOff, Video, VideoOff, Monitor, Copy, Check, Users } from "lucide-react";
 import buddyImg from "@/assets/buddy-owl.png";
+import { useAuth } from "@/hooks/useAuth";
+import { useMediaStream } from "@/hooks/useMediaStream";
 
 export default function MeetLobby() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomCode = searchParams.get("room") || "";
-  const role = (searchParams.get("role") as "presenter" | "viewer") || "viewer";
+  const { role } = useAuth();
+  const isTeacher = role === "teacher";
 
-  const [micOn, setMicOn] = useState(true);
-  const [cameraOn, setCameraOn] = useState(true);
+  const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error } = useMediaStream();
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(roomCode);
@@ -20,11 +29,9 @@ export default function MeetLobby() {
   };
 
   const handleJoin = () => {
-    navigate(`/meet?room=${roomCode}&role=${role}`);
-  };
-
-  const handlePresent = () => {
-    navigate(`/meet?room=${roomCode}&role=presenter`);
+    // Stop the preview stream before navigating
+    stream?.getTracks().forEach((t) => t.stop());
+    navigate(`/meet?room=${roomCode}`);
   };
 
   return (
@@ -33,31 +40,33 @@ export default function MeetLobby() {
         {/* Camera preview */}
         <div className="flex-1 w-full max-w-xl">
           <div className="aspect-video rounded-2xl bg-meet-surface border border-border overflow-hidden relative shadow-xl">
-            {cameraOn ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-foreground" style={{ backgroundColor: "hsl(168 60% 48%)" }}>
-                  YO
-                </div>
-              </div>
+            {videoEnabled && stream ? (
+              <video ref={videoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover mirror" style={{ transform: "scaleX(-1)" }} />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-meet-bar">
                 <VideoOff className="w-12 h-12 text-muted-foreground" />
               </div>
             )}
 
+            {error && (
+              <div className="absolute top-4 left-4 right-4 bg-destructive/90 text-destructive-foreground text-xs rounded-lg px-3 py-2">
+                {error}
+              </div>
+            )}
+
             {/* Controls */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
               <button
-                onClick={() => setMicOn(!micOn)}
-                className={`p-3 rounded-full transition-colors ${micOn ? "bg-secondary text-foreground" : "bg-destructive text-destructive-foreground"}`}
+                onClick={toggleAudio}
+                className={`p-3 rounded-full transition-colors ${audioEnabled ? "bg-secondary text-foreground" : "bg-destructive text-destructive-foreground"}`}
               >
-                {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                {audioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
               </button>
               <button
-                onClick={() => setCameraOn(!cameraOn)}
-                className={`p-3 rounded-full transition-colors ${cameraOn ? "bg-secondary text-foreground" : "bg-destructive text-destructive-foreground"}`}
+                onClick={toggleVideo}
+                className={`p-3 rounded-full transition-colors ${videoEnabled ? "bg-secondary text-foreground" : "bg-destructive text-destructive-foreground"}`}
               >
-                {cameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                {videoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -80,14 +89,14 @@ export default function MeetLobby() {
             )}
           </div>
 
-          {role === "presenter" && (
+          {isTeacher && (
             <div className="flex items-center gap-2 justify-center lg:justify-start px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
               <Monitor className="w-4 h-4 text-primary" />
               <span className="text-xs text-primary font-medium">You'll be presenting</span>
             </div>
           )}
 
-          {role === "viewer" && (
+          {!isTeacher && (
             <div className="flex items-center gap-2 justify-center lg:justify-start px-3 py-2 rounded-lg bg-secondary border border-border">
               <Users className="w-4 h-4 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Joining as viewer</span>
@@ -95,21 +104,9 @@ export default function MeetLobby() {
           )}
 
           <div className="space-y-3">
-            <button
-              onClick={handleJoin}
-              className="w-full px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
-            >
+            <button onClick={handleJoin} className="w-full px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity">
               Join now
             </button>
-            {role === "viewer" && (
-              <button
-                onClick={handlePresent}
-                className="w-full px-6 py-3 rounded-full bg-secondary text-foreground font-semibold hover:bg-secondary/80 transition-colors flex items-center justify-center gap-2"
-              >
-                <Monitor className="w-4 h-4" />
-                Present instead
-              </button>
-            )}
           </div>
 
           <div className="flex items-center gap-2 justify-center lg:justify-start">
