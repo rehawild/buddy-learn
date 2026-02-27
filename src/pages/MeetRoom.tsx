@@ -251,7 +251,7 @@ export default function MeetRoom() {
     return () => window.removeEventListener("keydown", handler);
   });
 
-  const totalParticipants = Math.max(fakeParticipants.length, participantCount + fakeParticipants.length - 1);
+  const totalParticipants = participantCount;
 
   if (slidesLoading) {
     return (
