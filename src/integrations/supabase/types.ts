@@ -14,26 +14,176 @@ export type Database = {
   }
   public: {
     Tables: {
+      presentation_slides: {
+        Row: {
+          content_text: string | null
+          created_at: string
+          id: string
+          image_path: string | null
+          presentation_id: string
+          slide_number: number
+        }
+        Insert: {
+          content_text?: string | null
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          presentation_id: string
+          slide_number: number
+        }
+        Update: {
+          content_text?: string | null
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          presentation_id?: string
+          slide_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presentation_slides_presentation_id_fkey"
+            columns: ["presentation_id"]
+            isOneToOne: false
+            referencedRelation: "presentations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presentations: {
+        Row: {
+          created_at: string
+          file_path: string
+          id: string
+          slide_count: number
+          teacher_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          id?: string
+          slide_count?: number
+          teacher_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          id?: string
+          slide_count?: number
+          teacher_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           display_name: string
           id: string
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           display_name: string
           id?: string
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           display_name?: string
           id?: string
           user_id?: string
         }
         Relationships: []
+      }
+      session_engagement: {
+        Row: {
+          avg_response_time: number | null
+          buddy_interactions: number
+          correct_answers: number
+          created_at: string
+          id: string
+          questions_answered: number
+          reactions_count: number
+          session_id: string
+          student_id: string
+        }
+        Insert: {
+          avg_response_time?: number | null
+          buddy_interactions?: number
+          correct_answers?: number
+          created_at?: string
+          id?: string
+          questions_answered?: number
+          reactions_count?: number
+          session_id: string
+          student_id: string
+        }
+        Update: {
+          avg_response_time?: number | null
+          buddy_interactions?: number
+          correct_answers?: number
+          created_at?: string
+          id?: string
+          questions_answered?: number
+          reactions_count?: number
+          session_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_engagement_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          ended_at: string | null
+          id: string
+          presentation_id: string | null
+          room_code: string
+          started_at: string
+          status: string
+          teacher_id: string
+        }
+        Insert: {
+          ended_at?: string | null
+          id?: string
+          presentation_id?: string | null
+          room_code: string
+          started_at?: string
+          status?: string
+          teacher_id: string
+        }
+        Update: {
+          ended_at?: string | null
+          id?: string
+          presentation_id?: string | null
+          room_code?: string
+          started_at?: string
+          status?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_presentation_id_fkey"
+            columns: ["presentation_id"]
+            isOneToOne: false
+            referencedRelation: "presentations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
