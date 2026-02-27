@@ -632,23 +632,24 @@ export default function MeetRoom() {
                       </div>
                     )}
 
-                    <BuddyOverlay
-                      question={effectiveQuestion}
-                      difficulty={difficulty}
-                      enabled={buddyEnabled}
-                      onAnswer={handleAnswer}
-                      onDismiss={handleDismiss}
-                      readOnly={isViewer && !hasUploadedSlides}
-                      questionSource={effectiveQuestion?.source === "transcript" ? "transcript" : (effectiveQuestion && hasUploadedSlides ? "slides" : undefined)}
-                    />
-
-                    {/* Buddy chat dialog (students only) */}
+                    {/* Buddy overlays (students only) */}
                     {isViewer && (
-                      <BuddyChatDialog
-                        chatHistory={aiChatHistory}
-                        isChatLoading={aiChatLoading}
-                        onSendChat={handleBuddyChat}
-                      />
+                      <>
+                        <BuddyOverlay
+                          question={effectiveQuestion}
+                          difficulty={difficulty}
+                          enabled={buddyEnabled}
+                          onAnswer={handleAnswer}
+                          onDismiss={handleDismiss}
+                          readOnly={!hasUploadedSlides}
+                          questionSource={effectiveQuestion?.source === "transcript" ? "transcript" : (effectiveQuestion && hasUploadedSlides ? "slides" : undefined)}
+                        />
+                        <BuddyChatDialog
+                          chatHistory={aiChatHistory}
+                          isChatLoading={aiChatLoading}
+                          onSendChat={handleBuddyChat}
+                        />
+                      </>
                     )}
 
                     {/* Live transcript subtitle bar */}
