@@ -14,6 +14,7 @@ import SlideRenderer from "@/components/SlideRenderer";
 import SlideThumbnail from "@/components/SlideThumbnail";
 import SlideProgress from "@/components/SlideProgress";
 import SpeakerNotes from "@/components/SpeakerNotes";
+import EmojiReactions from "@/components/EmojiReactions";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
 
 export default function MeetRoom() {
@@ -303,9 +304,19 @@ export default function MeetRoom() {
               {/* Participant filmstrip */}
               {presenting && (
                 <div className="flex gap-2 px-4 pt-2 overflow-x-auto flex-shrink-0">
-                  {fakeParticipants.filter((p) => !p.isSelf).slice(0, 4).map((p) => (
-                    <ParticipantTile key={p.id} participant={p} size="filmstrip" />
-                  ))}
+                  {/* Show real Presence participants if available, otherwise fallback */}
+                  {realtimeParticipants.length > 0
+                    ? realtimeParticipants.map((p) => (
+                        <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-xs text-foreground">
+                          <span className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
+                            {p.name.slice(0, 2).toUpperCase()}
+                          </span>
+                          {p.name} <span className="text-muted-foreground capitalize">({p.role})</span>
+                        </div>
+                      ))
+                    : fakeParticipants.filter((p) => !p.isSelf).slice(0, 4).map((p) => (
+                        <ParticipantTile key={p.id} participant={p} size="filmstrip" />
+                      ))}
                 </div>
               )}
 
@@ -319,6 +330,8 @@ export default function MeetRoom() {
                       lessonIcon={section.layout === "title" ? lesson.icon : undefined}
                       slideNumber={sectionIdx + 1}
                       totalSlides={totalSlides}
+                      theme={lesson.theme || "default"}
+                      slideKey={`${lessonIdx}-${sectionIdx}`}
                     />
 
                     {/* Slide nav (presenter only) */}
@@ -365,6 +378,7 @@ export default function MeetRoom() {
                 onClose={() => setSidePanel(null)}
                 roomCode={roomCode}
                 userName={isViewer ? "Viewer" : "Presenter"}
+                realtimeParticipants={realtimeParticipants}
               />
             )}
           </div>
@@ -424,6 +438,10 @@ export default function MeetRoom() {
             </button>
           </>
         )}
+
+        <div className="w-px h-8 bg-border mx-1" />
+
+        <EmojiReactions roomCode={roomCode} />
 
         <div className="w-px h-8 bg-border mx-1" />
 
