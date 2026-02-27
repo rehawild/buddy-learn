@@ -28,8 +28,15 @@ export default function MeetRoom() {
   const { slides: uploadedSlides, loading: slidesLoading, presentationTitle } = useSessionSlides(roomCode);
   const hasUploadedSlides = uploadedSlides && uploadedSlides.length > 0;
 
-  const [micOn, setMicOn] = useState(true);
-  const [cameraOn, setCameraOn] = useState(true);
+  // Real camera & mic
+  const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio } = useMediaStream();
+  const selfVideoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (selfVideoRef.current && stream) {
+      selfVideoRef.current.srcObject = stream;
+    }
+  }, [stream]);
   const [presenting, setPresenting] = useState(!isViewer);
   const [sidePanel, setSidePanel] = useState<"chat" | "people" | null>(null);
   const [handRaised, setHandRaised] = useState(false);
