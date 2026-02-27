@@ -24,15 +24,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchRoleAndProfile = async (userId: string) => {
     const [{ data: roleData }, { data: profileData }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
-      supabase.from("profiles").select("display_name").eq("user_id", userId).maybeSingle(),
+      supabase.from("profiles").select("display_name, avatar_url").eq("user_id", userId).maybeSingle(),
     ]);
     setRole((roleData?.role as AppRole) ?? null);
     setDisplayName(profileData?.display_name ?? null);
+    setAvatarUrl(profileData?.avatar_url ?? null);
+  };
+
+  const refreshProfile = () => {
+    if (user) fetchRoleAndProfile(user.id);
   };
 
   useEffect(() => {
