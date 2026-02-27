@@ -13,8 +13,19 @@ import SlideProgress from "@/components/SlideProgress";
 import SpeakerNotes from "@/components/SpeakerNotes";
 import SlideGridOverlay from "@/components/SlideGridOverlay";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
+import { useWebRTC } from "@/hooks/useWebRTC";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionSlides } from "@/hooks/useSessionSlides";
+import { supabase } from "@/integrations/supabase/client";
+
+function stringToColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 55%, 45%)`;
+}
 
 export default function MeetRoom() {
   const navigate = useNavigate();
@@ -72,7 +83,16 @@ export default function MeetRoom() {
 
   // Realtime room
   const realtimeRole = isViewer ? "viewer" : "presenter";
-  const { isConnected, remoteState, participants: realtimeParticipants, broadcast, participantCount } = useRealtimeRoom(roomCode, realtimeRole, userName);
+  const { isConnected, remoteState, participants: realtimeParticipants, broadcast, participantCount, channel, localPeerId, updatePresence } = useRealtimeRoom(roomCode, realtimeRole, userName);
+
+  // WebRTC peer-to-peer video/audio
+  const { remoteStreams } = useWebRTC({
+    localStream: stream,
+    channel,
+    localPeerId,
+    participants: realtimeParticipants,
+    enabled: isConnected,
+  });
 
   // Viewer: sync state from presenter
   useEffect(() => {
@@ -200,8 +220,15 @@ export default function MeetRoom() {
     broadcastState({ lessonIdx: i, sectionIdx: 0, activeQuestionIdx: null });
   };
 
-  const leaveCall = () => {
-    stream?.getTracks().forEach((t) => t.stop());
+  const leaveCall = async () => {
+    // If presenter, mark session as ended in Supabase
+    if (!isViewer && roomCode) {
+      await supabase
+        .from("sessions")
+        .update({ status: "ended", ended_at: new Date().toISOString() })
+        .eq("room_code", roomCode);
+    }
+
     if (presenting && results.total > 0) {
       navigate("/recap", { state: { lessonTitle: slideTitle, ...results, concepts: results.concepts.slice(0, 3) } });
     } else {
@@ -371,18 +398,30 @@ export default function MeetRoom() {
 
           <div className="flex-1 flex overflow-hidden">
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Participant filmstrip */}
+              {/* Participant filmstrip with video */}
               {presenting && (
                 <div className="flex gap-2 px-4 pt-2 overflow-x-auto flex-shrink-0">
                   {realtimeParticipants.length > 0
-                    ? realtimeParticipants.map((p) => (
-                        <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-xs text-foreground">
-                          <span className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
-                            {p.name.slice(0, 2).toUpperCase()}
-                          </span>
-                          {p.name} <span className="text-muted-foreground capitalize">({p.role})</span>
-                        </div>
-                      ))
+                    ? realtimeParticipants.map((p) => {
+                        const isSelf = p.id === localPeerId;
+                        return (
+                          <ParticipantTile
+                            key={p.id}
+                            participant={{
+                              id: p.id,
+                              name: p.name,
+                              initials: p.name.slice(0, 2).toUpperCase(),
+                              color: stringToColor(p.name),
+                              isMuted: isSelf ? !audioEnabled : false,
+                              isCameraOff: isSelf ? !videoEnabled : false,
+                              isSelf,
+                            }}
+                            size="filmstrip"
+                            stream={isSelf ? stream : (remoteStreams.get(p.id) ?? null)}
+                            handRaised={p.handRaised}
+                          />
+                        );
+                      })
                     : (
                       <div className="px-3 py-1.5 text-xs text-muted-foreground">
                         Waiting for participants…
@@ -445,16 +484,14 @@ export default function MeetRoom() {
                       </div>
                     )}
 
-                    {!hasUploadedSlides && (
-                      <BuddyOverlay
-                        question={activeQuestion}
-                        difficulty={difficulty}
-                        enabled={buddyEnabled}
-                        onAnswer={handleAnswer}
-                        onDismiss={handleDismiss}
-                        readOnly={isViewer}
-                      />
-                    )}
+                    <BuddyOverlay
+                      question={activeQuestion}
+                      difficulty={difficulty}
+                      enabled={buddyEnabled}
+                      onAnswer={handleAnswer}
+                      onDismiss={handleDismiss}
+                      readOnly={isViewer}
+                    />
                     {/* Self-view PIP */}
                     <div className="absolute bottom-14 right-4 w-36 h-24 rounded-lg overflow-hidden border-2 border-border shadow-lg bg-meet-bar z-10">
                       {videoEnabled && stream ? (
@@ -490,17 +527,26 @@ export default function MeetRoom() {
                 ) : (
                   <div className="h-full grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
                     {realtimeParticipants.length > 0
-                      ? realtimeParticipants.map((p) => (
-                          <div key={p.id} className="rounded-xl bg-meet-surface border border-border flex items-center justify-center">
-                            <div className="flex flex-col items-center gap-2">
-                              <span className="w-16 h-16 rounded-full bg-primary/30 flex items-center justify-center text-xl font-bold text-primary">
-                                {p.name.slice(0, 2).toUpperCase()}
-                              </span>
-                              <span className="text-sm text-foreground font-medium">{p.name}</span>
-                              <span className="text-xs text-muted-foreground capitalize">{p.role}</span>
-                            </div>
-                          </div>
-                        ))
+                      ? realtimeParticipants.map((p) => {
+                          const isSelf = p.id === localPeerId;
+                          return (
+                            <ParticipantTile
+                              key={p.id}
+                              participant={{
+                                id: p.id,
+                                name: p.name,
+                                initials: p.name.slice(0, 2).toUpperCase(),
+                                color: stringToColor(p.name),
+                                isMuted: isSelf ? !audioEnabled : false,
+                                isCameraOff: isSelf ? !videoEnabled : false,
+                                isSelf,
+                              }}
+                              size="large"
+                              stream={isSelf ? stream : (remoteStreams.get(p.id) ?? null)}
+                              handRaised={p.handRaised}
+                            />
+                          );
+                        })
                       : (
                         <div className="col-span-full flex items-center justify-center text-muted-foreground">
                           No participants yet
@@ -533,7 +579,11 @@ export default function MeetRoom() {
         cameraOn={videoEnabled}
         onToggleCamera={toggleVideo}
         handRaised={handRaised}
-        onToggleHand={() => setHandRaised((p) => !p)}
+        onToggleHand={() => {
+          const next = !handRaised;
+          setHandRaised(next);
+          updatePresence({ handRaised: next });
+        }}
         presenting={presenting}
         onTogglePresent={() => setPresenting((p) => !p)}
         isFullscreen={isFullscreen}

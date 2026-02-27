@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { MediaStreamProvider } from "@/hooks/useMediaStream";
 import Auth from "./pages/Auth";
 import LandingPage from "./pages/LandingPage";
 import MeetHome from "./pages/MeetHome";
@@ -52,6 +53,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <MediaStreamProvider>
           <Routes>
             <Route path="/landing" element={<LandingRoute />} />
             <Route path="/auth" element={<AuthRoute />} />
@@ -64,6 +66,7 @@ const App = () => (
             <Route path="/present" element={<ProtectedRoute><MeetHome /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </MediaStreamProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
