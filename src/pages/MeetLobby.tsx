@@ -54,7 +54,7 @@ export default function MeetLobby() {
   };
 
   const handleJoin = () => {
-    stream?.getTracks().forEach((t) => t.stop());
+    // Don't stop tracks here — let the hook cleanup handle it on unmount
     navigate(`/meet?room=${roomCode}`);
   };
 
