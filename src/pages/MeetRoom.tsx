@@ -15,13 +15,14 @@ import SlideProgress from "@/components/SlideProgress";
 import SpeakerNotes from "@/components/SpeakerNotes";
 import SlideGridOverlay from "@/components/SlideGridOverlay";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function MeetRoom() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomCode = searchParams.get("room");
-  const role = (searchParams.get("role") as "presenter" | "viewer") || "presenter";
-  const isViewer = role === "viewer";
+  const { role: authRole } = useAuth();
+  const isViewer = authRole !== "teacher";
 
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
