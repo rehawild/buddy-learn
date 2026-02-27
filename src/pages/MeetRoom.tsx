@@ -330,6 +330,8 @@ export default function MeetRoom() {
                       lessonIcon={section.layout === "title" ? lesson.icon : undefined}
                       slideNumber={sectionIdx + 1}
                       totalSlides={totalSlides}
+                      theme={lesson.theme || "default"}
+                      slideKey={`${lessonIdx}-${sectionIdx}`}
                     />
 
                     {/* Slide nav (presenter only) */}
