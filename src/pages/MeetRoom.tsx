@@ -72,7 +72,7 @@ export default function MeetRoom() {
 
   // Realtime room
   const realtimeRole = isViewer ? "viewer" : "presenter";
-  const { isConnected, remoteState, participants: realtimeParticipants, broadcast, participantCount } = useRealtimeRoom(roomCode, realtimeRole);
+  const { isConnected, remoteState, participants: realtimeParticipants, broadcast, participantCount } = useRealtimeRoom(roomCode, realtimeRole, userName);
 
   // Viewer: sync state from presenter
   useEffect(() => {
