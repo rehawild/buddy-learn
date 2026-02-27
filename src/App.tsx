@@ -10,6 +10,7 @@ import MeetLobby from "./pages/MeetLobby";
 import MeetRoom from "./pages/MeetRoom";
 import Recap from "./pages/Recap";
 import TeacherDashboard from "./pages/TeacherDashboard";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
