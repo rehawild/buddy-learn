@@ -1,32 +1,50 @@
-## Plan: Full Google Meet-Style Presentation System
 
-### ✅ Completed
-- 16:9 slide renderer with 4 layouts (title, content, two-column, quote)
-- Slide thumbnail sidebar with lesson switcher
-- Slide progress bar and navigation controls
-- Speaker notes panel (collapsible)
-- Fullscreen mode with keyboard navigation
-- Real-time sync via Supabase Broadcast (presenter/viewer roles)
-- Real-time chat sidebar (broadcast)
-- Room creation and join flow
-- Buddy overlay with questions
-- **Slide transition animations** (fade-slide CSS on key change)
-- **Per-lesson slide themes** (default, dark, gradient, warm, ocean)
-- **4 lessons** (Photosynthesis 6 slides, Renaissance 6 slides, Gravity 6 slides, French Revolution 6 slides)
-- **Emoji reactions** via Broadcast (👍🔥❓👏😂💡 with floating animation)
-- **Real Presence participants** in filmstrip and People sidebar
-- **Phase 1: Database & Storage** — presentations, presentation_slides, sessions, session_engagement tables + storage buckets (presentations, slide-images, avatars)
-- **Phase 2: Profile Page** — /profile with avatar upload, display name editing, role badge, session history
-- **Phase 4: Presentation Upload** — Teacher upload PDF/PPTX on MeetHome, create session in Supabase
-- **Phase 5: Role-Differentiated Meeting** — Auth-derived roles (teacher=presenter, student=viewer), role-based MeetHome/Lobby/Room
-- **Phase 6: Real Camera & Mic** — getUserMedia in lobby with live video preview and toggle controls
-- **Teacher Join Restriction** — Teachers can only present their own sessions (UI + server-side enforcement in lobby)
-- **Client-side PDF/PPTX Parsing** — pdfjs-dist for PDF page rendering, JSZip for PPTX slide extraction, upload slide images to Supabase
-- **Uploaded Slides in MeetRoom** — Fetch presentation_slides from Supabase, render as images with thumbnail sidebar
 
-### Remaining (nice-to-haves)
-- Phase 3: Dashboard improvements (real Supabase queries, session picker, presentations list)
-- Save engagement data on session end
-- Image/image-text slide layout
-- Presenter laser pointer cursor broadcast
-- Recording / export to PDF
+# Why the Camera Is Not Working
+
+There are **three distinct issues** preventing the camera from functioning:
+
+---
+
+## Issue 1: Errors are silently swallowed
+
+The `useMediaStream` hook captures errors (line 25) into an `error` state, but **MeetRoom never reads or displays this error**. When `getUserMedia` fails (permission denied, no device, or iframe sandbox restriction), the user sees "Camera off" with zero feedback about what went wrong.
+
+## Issue 2: Lovable preview iframe blocks `getUserMedia`
+
+The preview runs inside a sandboxed iframe. Browsers require the iframe to have `allow="camera;microphone"` permissions. If these are missing, `getUserMedia` rejects immediately. The lobby has the same issue. This is a **platform-level limitation** — the camera will work when the app is opened in its own tab/window (the published or preview URL directly), but not inside the embedded preview panel.
+
+## Issue 3: Stream acquired in Lobby is destroyed before MeetRoom
+
+In `MeetLobby.handleJoin()`, all tracks are stopped before navigating. Then `MeetRoom` creates a brand-new `useMediaStream` instance which calls `getUserMedia` again. This is technically correct but means the user gets a **second permission prompt** (or silent denial if the browser auto-blocks repeated requests in quick succession).
+
+---
+
+## Plan
+
+### 1. Display camera/mic errors in MeetRoom
+- Read the `error` value from `useMediaStream()` in MeetRoom
+- Show an error banner in the self-view PIP area (similar to how the lobby shows errors)
+- This gives immediate visibility into why the camera isn't working
+
+### 2. Add a fallback UI and retry button
+- When `stream` is null and `error` is set, show the error message + a "Retry" button in the PIP
+- Add a `retry()` function to `useMediaStream` that re-calls `getUserMedia`
+- This handles cases where the user initially denies permission but wants to grant it later
+
+### 3. Show a clear message when in iframe sandbox
+- Detect iframe context (`window.self !== window.top`)
+- When in an iframe and camera fails, show a specific message: "Open in a new tab to use your camera"
+- Add a button/link to open the preview URL in a new tab
+
+### 4. Stop double-requesting in Lobby → Room transition
+- In `MeetLobby.handleJoin()`, stop calling `stream.getTracks().forEach(stop)` — let the stream persist via a shared context or just let `useMediaStream` cleanup handle it on unmount
+- Alternatively, accept the double-request but suppress any "already in use" errors gracefully
+
+---
+
+### Files to modify
+- `src/hooks/useMediaStream.ts` — add `retry()` function, iframe detection
+- `src/pages/MeetRoom.tsx` — display `error` from the hook, show retry/open-in-tab UI in the PIP area
+- `src/pages/MeetLobby.tsx` — remove premature `stream.stop()` before navigation (let hook cleanup handle it)
+
