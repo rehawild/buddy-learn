@@ -15,7 +15,8 @@ interface UseStudentAgentParams {
   studentId: string;
   studentName: string;
   currentSlideIndex: number;
-  enabled: boolean; // only true for students with uploaded slides
+  enabled: boolean;
+  fallbackLessonTitle?: string;
 }
 
 export interface StudentAgentState {
@@ -32,6 +33,7 @@ export function useStudentAgent({
   studentName,
   currentSlideIndex,
   enabled,
+  fallbackLessonTitle,
 }: UseStudentAgentParams) {
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
   const [sessionContext, setSessionContext] = useState<AgentInitEvent | null>(null);
@@ -149,7 +151,7 @@ export function useStudentAgent({
 
   const sendChatMessage = useCallback(
     async (message: string, slideContent: string, slideTitle: string) => {
-      if (!sessionContext) return;
+      const lessonTitle = sessionContext?.lessonTitle || fallbackLessonTitle || "Lesson";
 
       setIsChatLoading(true);
       const updatedHistory = [...chatHistory, { role: "user" as const, content: message }];
@@ -160,7 +162,7 @@ export function useStudentAgent({
           message,
           slideContent,
           slideTitle,
-          lessonTitle: sessionContext.lessonTitle,
+          lessonTitle,
           conversationHistory: updatedHistory,
         };
 
@@ -193,7 +195,7 @@ export function useStudentAgent({
         setIsChatLoading(false);
       }
     },
-    [sessionContext, chatHistory],
+    [sessionContext, chatHistory, fallbackLessonTitle],
   );
 
   return {

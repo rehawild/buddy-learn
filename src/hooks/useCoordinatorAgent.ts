@@ -10,54 +10,10 @@ import type {
 import type { Question } from "@/data/lessons";
 import type { UploadedSlide } from "@/hooks/useSessionSlides";
 
-// ── SpeechRecognition types (Web Speech API) ──
-
-interface SpeechRecognitionEvent {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionResultList {
-  readonly length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  readonly length: number;
-  readonly isFinal: boolean;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-}
-
-interface SpeechRecognitionAlternative {
-  readonly transcript: string;
-  readonly confidence: number;
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognition;
-    webkitSpeechRecognition?: new () => SpeechRecognition;
-  }
-}
-
 // ── Config ──
 
 const COVERAGE_THRESHOLD = 0.4; // 40% of key phrases to mark slide as covered
-const TRANSCRIPT_WINDOW_SIZE = 500; // rolling window of characters
+const TRANSCRIPT_QUESTION_THRESHOLD = 200; // chars of stable transcript before generating questions
 
 // ── Types ──
 
@@ -80,6 +36,10 @@ interface UseCoordinatorAgentParams {
   currentSlideIndex: number;
   sessionId: string | null;
   enabled: boolean; // only true for teacher with uploaded slides
+  /** Stable transcript text from useLiveTranscript */
+  transcriptText?: string;
+  /** Whether live transcript is listening */
+  transcriptListening?: boolean;
 }
 
 export function useCoordinatorAgent({
@@ -91,21 +51,21 @@ export function useCoordinatorAgent({
   currentSlideIndex,
   sessionId,
   enabled,
+  transcriptText = "",
+  transcriptListening = false,
 }: UseCoordinatorAgentParams) {
   const [questionBank, setQuestionBank] = useState<SlideQuestionBank[] | null>(null);
   const [isPreGenerating, setIsPreGenerating] = useState(false);
   const [preGenerateError, setPreGenerateError] = useState<string | null>(null);
-  const [currentTranscript, setCurrentTranscript] = useState("");
   const [coveredSlides, setCoveredSlides] = useState<Set<number>>(new Set());
-  const [isListening, setIsListening] = useState(false);
   const [studentResponses, setStudentResponses] = useState<StudentResponseEvent[]>([]);
 
   const questionBankRef = useRef<SlideQuestionBank[] | null>(null);
   const coveredSlidesRef = useRef<Set<number>>(new Set());
-  const transcriptRef = useRef("");
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const dispatchedQuestionsRef = useRef<Set<string>>(new Set()); // "slideIdx-qIdx"
   const [dispatchCount, setDispatchCount] = useState(0);
+  const transcriptQuestionsSentRef = useRef<Set<number>>(new Set()); // slide indices already processed
+  const lastTranscriptLenRef = useRef(0);
 
   // Keep refs in sync
   useEffect(() => {
@@ -171,88 +131,79 @@ export function useCoordinatorAgent({
     preGenerate();
   }, [enabled, slides, lessonTitle, difficulty, questionBank]);
 
-  // ── 2. Speech tracking with Web Speech API ──
+  // ── 2. Content matching: compare transcript against key phrases ──
+
+  // Run coverage check whenever transcriptText changes
+  useEffect(() => {
+    if (!enabled || !transcriptText) return;
+    checkCoverage(transcriptText);
+  }, [enabled, transcriptText]);
+
+  // ── 2b. Transcript-based question generation ──
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !slides || !channel || !transcriptText) return;
+    if (transcriptText.length < TRANSCRIPT_QUESTION_THRESHOLD) return;
+    // Only trigger when significant new text arrives
+    if (transcriptText.length - lastTranscriptLenRef.current < TRANSCRIPT_QUESTION_THRESHOLD) return;
 
-    const SpeechRecognitionCtor =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const slideIdx = currentSlideIndex;
+    if (transcriptQuestionsSentRef.current.has(slideIdx)) return;
+    transcriptQuestionsSentRef.current.add(slideIdx);
+    lastTranscriptLenRef.current = transcriptText.length;
 
-    if (!SpeechRecognitionCtor) {
-      console.warn("[Coordinator] Web Speech API not supported in this browser");
-      return;
-    }
+    const slide = slides[slideIdx];
+    if (!slide) return;
 
-    const recognition = new SpeechRecognitionCtor();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalText = "";
-      let interimText = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalText += event.results[i][0].transcript;
-        } else {
-          interimText += event.results[i][0].transcript;
-        }
-      }
-
-      // Append final text to the rolling window (stable, for coverage matching)
-      if (finalText) {
-        transcriptRef.current = (transcriptRef.current + " " + finalText)
-          .slice(-TRANSCRIPT_WINDOW_SIZE)
-          .trim();
-        checkCoverage(transcriptRef.current);
-      }
-
-      // Display = stable transcript + current interim (visual only)
-      const display = (transcriptRef.current + " " + interimText).trim();
-      setCurrentTranscript(display);
-    };
-
-    recognition.onerror = (event) => {
-      // "no-speech" is common and not a real error
-      if (event.error !== "no-speech") {
-        console.warn("[Coordinator] Speech recognition error:", event.error);
-      }
-    };
-
-    recognition.onend = () => {
-      // Auto-restart if still enabled
-      if (enabled && recognitionRef.current) {
-        try {
-          recognition.start();
-        } catch {
-          // Already started, ignore
-        }
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-      setIsListening(true);
-      console.log("[Coordinator] Speech recognition started");
-    } catch {
-      console.warn("[Coordinator] Failed to start speech recognition");
-    }
-
-    return () => {
-      recognitionRef.current = null;
-      setIsListening(false);
+    const generateTranscriptQuestions = async () => {
       try {
-        recognition.stop();
-      } catch {
-        // Already stopped
+        const { data, error } = await supabase.functions.invoke("buddy-ai", {
+          body: {
+            action: "transcript-questions",
+            payload: {
+              transcript: transcriptText,
+              slideContent: slide.contentText || `[Slide ${slide.slideNumber}]`,
+              slideTitle: `Slide ${slide.slideNumber}`,
+              lessonTitle,
+              slideIndex: slideIdx,
+              difficulty,
+            },
+          },
+        });
+
+        if (error || data?.error) {
+          console.warn("[Coordinator] Transcript question generation error:", error?.message || data?.error);
+          return;
+        }
+
+        const questions = data.questions as Question[];
+        if (!questions || questions.length === 0) return;
+
+        // Dispatch transcript-based questions
+        for (const question of questions) {
+          const event: QuestionDispatchEvent = {
+            slideIndex: slideIdx,
+            question: { ...question, source: "transcript" },
+            dispatchedAt: new Date().toISOString(),
+          };
+
+          channel.send({
+            type: "broadcast",
+            event: "buddy_question",
+            payload: event,
+          });
+
+          console.log("[Coordinator] Dispatched transcript question:", question.question);
+        }
+
+        setDispatchCount((c) => c + questions.length);
+      } catch (err) {
+        console.warn("[Coordinator] Transcript question error:", err);
       }
     };
-  }, [enabled]);
 
-  // ── 3. Content matching: compare transcript against key phrases ──
+    generateTranscriptQuestions();
+  }, [enabled, slides, channel, transcriptText, currentSlideIndex, lessonTitle, difficulty]);
 
   const checkCoverage = useCallback(
     (transcript: string) => {
@@ -483,9 +434,9 @@ export function useCoordinatorAgent({
     questionBank,
     isPreGenerating,
     preGenerateError,
-    currentTranscript,
+    currentTranscript: transcriptText,
     coveredSlides,
-    isListening,
+    isListening: transcriptListening,
     studentResponses,
     dispatchForCurrentSlide,
     dispatchAll,

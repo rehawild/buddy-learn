@@ -19,9 +19,11 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef(channel);
   const localStreamRef = useRef(localStream);
+  const localPeerIdRef = useRef(localPeerId);
 
   channelRef.current = channel;
   localStreamRef.current = localStream;
+  localPeerIdRef.current = localPeerId;
 
   const updateStreams = useCallback((peerId: string, stream: MediaStream | null) => {
     setRemoteStreams((prev) => {
@@ -33,6 +35,19 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       }
       return next;
     });
+  }, []);
+
+  const initiateOffer = useCallback((pc: RTCPeerConnection, remotePeerId: string) => {
+    pc.createOffer()
+      .then((offer) => pc.setLocalDescription(offer).then(() => offer))
+      .then((offer) => {
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "webrtc_offer",
+          payload: { from: localPeerIdRef.current, to: remotePeerId, sdp: offer },
+        });
+      })
+      .catch((err) => console.warn("[WebRTC] Offer error:", err));
   }, []);
 
   const createPC = useCallback((remotePeerId: string): RTCPeerConnection => {
@@ -59,8 +74,15 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
         channelRef.current.send({
           type: "broadcast",
           event: "webrtc_ice",
-          payload: { from: localPeerId, to: remotePeerId, candidate: e.candidate.toJSON() },
+          payload: { from: localPeerIdRef.current, to: remotePeerId, candidate: e.candidate.toJSON() },
         });
+      }
+    };
+
+    // Handle renegotiation (fires when tracks are added after connection)
+    pc.onnegotiationneeded = () => {
+      if (pc.signalingState === "stable") {
+        initiateOffer(pc, remotePeerId);
       }
     };
 
@@ -72,7 +94,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
 
     pcsRef.current.set(remotePeerId, pc);
     return pc;
-  }, [localPeerId, updateStreams]);
+  }, [updateStreams, initiateOffer]);
 
   const closePC = useCallback((remotePeerId: string) => {
     const pc = pcsRef.current.get(remotePeerId);
@@ -91,7 +113,13 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       const { from, to, sdp } = payload;
       if (to !== localPeerId) return;
 
+      // Close existing PC if signaling state is incompatible (handle re-offers)
       let pc = pcsRef.current.get(from);
+      if (pc && pc.signalingState !== "stable") {
+        pc.close();
+        pcsRef.current.delete(from);
+        pc = undefined;
+      }
       if (!pc) {
         pc = createPC(from);
       }
@@ -122,21 +150,49 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       if (to !== localPeerId) return;
 
       const pc = pcsRef.current.get(from);
-      if (pc) {
+      if (pc && pc.remoteDescription) {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    };
+
+    // Handle peer_ready: a late-joiner announces its stream is available
+    const handlePeerReady = ({ payload }: { payload: any }) => {
+      const { from } = payload;
+      if (from === localPeerId) return;
+
+      // If we should initiate (our ID is smaller) and don't have a connection, start one
+      if (localPeerId < from && !pcsRef.current.has(from)) {
+        const pc = createPC(from);
+        initiateOffer(pc, from);
+      }
+      // If the other side should initiate but already has a connection, trigger renegotiation
+      if (localPeerId > from) {
+        const pc = pcsRef.current.get(from);
+        if (pc && pc.signalingState === "stable" && localStreamRef.current) {
+          // Already connected — the onnegotiationneeded handler takes care of it
+        } else if (!pc) {
+          // No connection yet and the other side should initiate — broadcast our own ready
+          channelRef.current?.send({
+            type: "broadcast",
+            event: "peer_ready",
+            payload: { from: localPeerId },
+          });
+        }
       }
     };
 
     channel.on("broadcast", { event: "webrtc_offer" }, handleOffer);
     channel.on("broadcast", { event: "webrtc_answer" }, handleAnswer);
     channel.on("broadcast", { event: "webrtc_ice" }, handleICE);
+    channel.on("broadcast", { event: "peer_ready" }, handlePeerReady);
 
     return () => {
       channel.off("broadcast", { event: "webrtc_offer" }, handleOffer);
       channel.off("broadcast", { event: "webrtc_answer" }, handleAnswer);
       channel.off("broadcast", { event: "webrtc_ice" }, handleICE);
+      channel.off("broadcast", { event: "peer_ready" }, handlePeerReady);
     };
-  }, [channel, enabled, localPeerId, createPC]);
+  }, [channel, enabled, localPeerId, createPC, initiateOffer]);
 
   // On participant changes, initiate connections to new peers
   useEffect(() => {
@@ -158,20 +214,12 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       if (pcsRef.current.has(remotePeerId)) continue;
       if (localPeerId < remotePeerId) {
         const pc = createPC(remotePeerId);
-        pc.createOffer()
-          .then((offer) => pc.setLocalDescription(offer).then(() => offer))
-          .then((offer) => {
-            channelRef.current?.send({
-              type: "broadcast",
-              event: "webrtc_offer",
-              payload: { from: localPeerId, to: remotePeerId, sdp: offer },
-            });
-          });
+        initiateOffer(pc, remotePeerId);
       }
     }
-  }, [participants, enabled, channel, localPeerId, createPC, closePC]);
+  }, [participants, enabled, channel, localPeerId, createPC, closePC, initiateOffer]);
 
-  // When local stream changes, replace tracks on all existing connections
+  // When local stream changes, replace tracks on all existing connections and broadcast readiness
   useEffect(() => {
     if (!localStream) return;
 
@@ -186,7 +234,16 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
         }
       }
     }
-  }, [localStream]);
+
+    // Announce stream readiness to trigger connections from peers that missed us
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "peer_ready",
+        payload: { from: localPeerId },
+      });
+    }
+  }, [localStream, localPeerId]);
 
   // Cleanup all connections on unmount
   useEffect(() => {

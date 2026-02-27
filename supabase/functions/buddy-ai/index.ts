@@ -44,6 +44,32 @@ Output format (JSON array):
   }
 ]`;
 
+const TRANSCRIPT_QUESTION_SYSTEM = `You are StudyBuddy's question generator. Given a teacher's spoken transcript and the current slide context, generate 1-3 multiple-choice (A/B) questions about concepts the teacher emphasized verbally.
+
+Rules:
+- Focus on concepts mentioned in the transcript that go BEYOND what's written on the slide.
+- Each question must have exactly 2 options (A/B format).
+- Include a "highlight" (the key phrase from the transcript being tested).
+- Include reinforcement text and correction text.
+- Keep questions concise and clear.
+- Return valid JSON only, no markdown fences.
+
+Output format (JSON array):
+[
+  {
+    "highlight": "key concept from speech",
+    "question": "Question text?",
+    "type": "choice",
+    "options": ["Option A", "Option B"],
+    "answer": "Option A",
+    "reinforcement": "Why this is correct...",
+    "correction": "Why the other is wrong...",
+    "difficulty": "easy",
+    "topic": "Discussion Topic",
+    "source": "transcript"
+  }
+]`;
+
 const BUDDY_CHAT_SYSTEM = `You are StudyBuddy, a friendly animated owl companion that helps students learn. You are sitting on top of the student's lesson slides.
 
 Rules:
@@ -145,6 +171,34 @@ Student says: ${payload.message}`;
   return { reply };
 }
 
+async function handleTranscriptQuestions(
+  payload: {
+    transcript: string;
+    slideContent: string;
+    slideTitle: string;
+    lessonTitle: string;
+    slideIndex: number;
+    difficulty: string;
+  },
+  apiKey: string,
+) {
+  const userMessage = `Lesson: "${payload.lessonTitle}"
+Current slide (${payload.slideIndex + 1}): "${payload.slideTitle}"
+Slide content: ${payload.slideContent}
+Difficulty: ${payload.difficulty}
+
+Teacher's spoken transcript:
+${payload.transcript}
+
+Generate 1-3 questions about concepts the teacher emphasized verbally that go beyond the slide text.`;
+
+  const raw = await callAzure(TRANSCRIPT_QUESTION_SYSTEM, userMessage, apiKey, 0.5, 2048);
+  const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const questions = JSON.parse(cleaned);
+
+  return { questions };
+}
+
 // ── Main handler ──
 
 Deno.serve(async (req) => {
@@ -169,6 +223,9 @@ Deno.serve(async (req) => {
         break;
       case "buddy-chat":
         result = await handleBuddyChat(payload, apiKey);
+        break;
+      case "transcript-questions":
+        result = await handleTranscriptQuestions(payload, apiKey);
         break;
       default:
         throw new Error(`Unknown action: ${action}`);

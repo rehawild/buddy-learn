@@ -7,6 +7,7 @@ import ParticipantTile from "@/components/ParticipantTile";
 import MeetSidebar from "@/components/MeetSidebar";
 import MeetBottomBar from "@/components/MeetBottomBar";
 import BuddyOverlay from "@/components/BuddyOverlay";
+import BuddyChatDialog from "@/components/BuddyChatDialog";
 import SlideRenderer from "@/components/SlideRenderer";
 import SlideThumbnail from "@/components/SlideThumbnail";
 import SlideProgress from "@/components/SlideProgress";
@@ -15,6 +16,7 @@ import SlideGridOverlay from "@/components/SlideGridOverlay";
 import TeacherQuestionPanel from "@/components/TeacherQuestionPanel";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { useLiveTranscript } from "@/hooks/useLiveTranscript";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionSlides } from "@/hooks/useSessionSlides";
 import { useCoordinatorAgent } from "@/hooks/useCoordinatorAgent";
@@ -43,14 +45,7 @@ export default function MeetRoom() {
   const hasUploadedSlides = uploadedSlides && uploadedSlides.length > 0;
 
   // Real camera & mic
-  const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error: mediaError, isInIframe, retry: retryMedia } = useMediaStream();
-  const selfVideoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (selfVideoRef.current && stream) {
-      selfVideoRef.current.srcObject = stream;
-    }
-  }, [stream]);
+  const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio } = useMediaStream();
   const [presenting, setPresenting] = useState(!isViewer);
   const [sidePanel, setSidePanel] = useState<"chat" | "people" | "questions" | null>(null);
   const [handRaised, setHandRaised] = useState(false);
@@ -97,6 +92,19 @@ export default function MeetRoom() {
     enabled: isConnected,
   });
 
+  // Live transcript (all participants)
+  const {
+    transcriptLines,
+    localTranscript,
+    isListening: transcriptIsListening,
+  } = useLiveTranscript({
+    channel,
+    isConnected,
+    localPeerId,
+    speakerName: userName,
+    audioEnabled,
+  });
+
   // Session ID lookup (for engagement persistence)
   const [sessionId, setSessionId] = useState<string | null>(null);
   useEffect(() => {
@@ -132,9 +140,11 @@ export default function MeetRoom() {
     currentSlideIndex: sectionIdx,
     sessionId,
     enabled: !isViewer && hasUploadedSlides === true,
+    transcriptText: localTranscript,
+    transcriptListening: transcriptIsListening,
   });
 
-  // ── AI Student Agent (student with uploaded slides) ──
+  // ── AI Student Agent (students — always enabled for chat) ──
   const {
     activeQuestion: aiActiveQuestion,
     answerQuestion: aiAnswerQuestion,
@@ -149,7 +159,10 @@ export default function MeetRoom() {
     studentId: localPeerId,
     studentName: userName,
     currentSlideIndex: sectionIdx,
-    enabled: isViewer && hasUploadedSlides === true,
+    enabled: isViewer,
+    fallbackLessonTitle: hasUploadedSlides
+      ? (presentationTitle || "Presentation")
+      : (lessons[lessonIdx]?.title || "Study Session"),
   });
 
   // Viewer: sync state from presenter
@@ -502,6 +515,7 @@ export default function MeetRoom() {
                             size="filmstrip"
                             stream={isSelf ? stream : (remoteStreams.get(p.id) ?? null)}
                             handRaised={p.handRaised}
+                            role={p.role}
                           />
                         );
                       })
@@ -625,41 +639,31 @@ export default function MeetRoom() {
                       onAnswer={handleAnswer}
                       onDismiss={handleDismiss}
                       readOnly={isViewer && !hasUploadedSlides}
-                      chatHistory={isViewer && hasUploadedSlides ? aiChatHistory : undefined}
-                      isChatLoading={isViewer && hasUploadedSlides ? aiChatLoading : undefined}
-                      onSendChat={isViewer && hasUploadedSlides ? handleBuddyChat : undefined}
+                      questionSource={effectiveQuestion?.source === "transcript" ? "transcript" : (effectiveQuestion && hasUploadedSlides ? "slides" : undefined)}
                     />
-                    {/* Self-view PIP */}
-                    <div className="absolute bottom-14 right-4 w-36 h-24 rounded-lg overflow-hidden border-2 border-border shadow-lg bg-meet-bar z-10">
-                      {videoEnabled && stream ? (
-                        <video ref={selfVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
-                      ) : mediaError ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-[9px] text-destructive p-1.5 gap-1 text-center">
-                          <span>{isInIframe ? "Open in new tab" : "Camera error"}</span>
-                          {isInIframe ? (
-                            <a
-                              href={window.location.href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2 py-0.5 rounded bg-primary text-primary-foreground font-semibold hover:opacity-90"
-                            >
-                              Open
-                            </a>
-                          ) : (
-                            <button
-                              onClick={retryMedia}
-                              className="px-2 py-0.5 rounded bg-primary text-primary-foreground font-semibold hover:opacity-90"
-                            >
-                              Retry
-                            </button>
-                          )}
+
+                    {/* Buddy chat dialog (students only) */}
+                    {isViewer && (
+                      <BuddyChatDialog
+                        chatHistory={aiChatHistory}
+                        isChatLoading={aiChatLoading}
+                        onSendChat={handleBuddyChat}
+                      />
+                    )}
+
+                    {/* Live transcript subtitle bar */}
+                    {transcriptLines.length > 0 && (
+                      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 max-w-[80%] z-20">
+                        <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-center">
+                          {transcriptLines.slice(-2).map((line, i) => (
+                            <p key={line.peerId + i} className="text-sm text-white/90">
+                              <span className="font-semibold text-primary-foreground/80">{line.speaker}: </span>
+                              {line.text}
+                            </p>
+                          ))}
                         </div>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                          Camera off
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="h-full grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
@@ -681,6 +685,7 @@ export default function MeetRoom() {
                               size="large"
                               stream={isSelf ? stream : (remoteStreams.get(p.id) ?? null)}
                               handRaised={p.handRaised}
+                              role={p.role}
                             />
                           );
                         })

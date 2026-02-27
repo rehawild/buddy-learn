@@ -10,6 +10,7 @@ export interface Question {
   correction: string;
   difficulty: "easy" | "medium" | "hard";
   topic?: string;
+  source?: "slides" | "transcript";
 }
 
 export interface Section {

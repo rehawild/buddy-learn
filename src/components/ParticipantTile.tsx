@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { MicOff, Hand, Pin } from "lucide-react";
+import { MicOff, Hand, Pin, GraduationCap } from "lucide-react";
 import type { Participant } from "@/data/participants";
 
 interface ParticipantTileProps {
@@ -8,9 +8,10 @@ interface ParticipantTileProps {
   speaking?: boolean;
   stream?: MediaStream | null;
   handRaised?: boolean;
+  role?: "presenter" | "viewer";
 }
 
-export default function ParticipantTile({ participant, size = "large", speaking = false, stream, handRaised }: ParticipantTileProps) {
+export default function ParticipantTile({ participant, size = "large", speaking = false, stream, handRaised, role }: ParticipantTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -62,6 +63,14 @@ export default function ParticipantTile({ participant, size = "large", speaking 
       {handRaised && (
         <div className="absolute top-2 left-2 p-1 rounded-full bg-yellow-500 text-white animate-bounce">
           <Hand className="w-3.5 h-3.5" />
+        </div>
+      )}
+
+      {/* Teacher badge */}
+      {role === "presenter" && (
+        <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-[10px] font-semibold">
+          <GraduationCap className="w-3 h-3" />
+          <span>Teacher</span>
         </div>
       )}
 
