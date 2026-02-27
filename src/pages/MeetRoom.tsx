@@ -304,9 +304,19 @@ export default function MeetRoom() {
               {/* Participant filmstrip */}
               {presenting && (
                 <div className="flex gap-2 px-4 pt-2 overflow-x-auto flex-shrink-0">
-                  {fakeParticipants.filter((p) => !p.isSelf).slice(0, 4).map((p) => (
-                    <ParticipantTile key={p.id} participant={p} size="filmstrip" />
-                  ))}
+                  {/* Show real Presence participants if available, otherwise fallback */}
+                  {realtimeParticipants.length > 0
+                    ? realtimeParticipants.map((p) => (
+                        <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-xs text-foreground">
+                          <span className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
+                            {p.name.slice(0, 2).toUpperCase()}
+                          </span>
+                          {p.name} <span className="text-muted-foreground capitalize">({p.role})</span>
+                        </div>
+                      ))
+                    : fakeParticipants.filter((p) => !p.isSelf).slice(0, 4).map((p) => (
+                        <ParticipantTile key={p.id} participant={p} size="filmstrip" />
+                      ))}
                 </div>
               )}
 
