@@ -7,6 +7,7 @@ import MeetHome from "./pages/MeetHome";
 import MeetLobby from "./pages/MeetLobby";
 import MeetRoom from "./pages/MeetRoom";
 import Recap from "./pages/Recap";
+import TeacherDashboard from "./pages/TeacherDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
