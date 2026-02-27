@@ -452,6 +452,16 @@ export default function MeetRoom() {
                         readOnly={isViewer}
                       />
                     )}
+                    {/* Self-view PIP */}
+                    <div className="absolute bottom-14 right-4 w-36 h-24 rounded-lg overflow-hidden border-2 border-border shadow-lg bg-meet-bar z-10">
+                      {videoEnabled && stream ? (
+                        <video ref={selfVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                          Camera off
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="h-full grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
