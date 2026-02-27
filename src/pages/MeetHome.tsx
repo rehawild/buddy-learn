@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Video, Keyboard, Plus, Calendar, Users, Copy, Check } from "lucide-react";
+import { Video, Keyboard, Plus, Calendar, Users, Copy, Check, LayoutDashboard, LogOut } from "lucide-react";
 import buddyImg from "@/assets/buddy-owl.png";
 import { generateRoomCode } from "@/lib/room";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function MeetHome() {
   const navigate = useNavigate();
+  const { role, signOut } = useAuth();
   const [meetingCode, setMeetingCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -44,7 +46,23 @@ export default function MeetHome() {
           <Video className="w-6 h-6 text-primary" />
           <span className="text-lg font-semibold text-foreground">Study Meet</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {role === "teacher" && (
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </button>
+          )}
+          <button
+            onClick={async () => { await signOut(); navigate("/auth"); }}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
           <span className="text-sm text-muted-foreground hidden sm:block">
             {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
           </span>

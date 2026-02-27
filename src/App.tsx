@@ -21,6 +21,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function TeacherRoute({ children }: { children: React.ReactNode }) {
+  const { user, role, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Loading…</div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (role !== "teacher") return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function AuthRoute() {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Loading…</div>;
@@ -41,7 +49,7 @@ const App = () => (
             <Route path="/lobby" element={<ProtectedRoute><MeetLobby /></ProtectedRoute>} />
             <Route path="/meet" element={<ProtectedRoute><MeetRoom /></ProtectedRoute>} />
             <Route path="/recap" element={<ProtectedRoute><Recap /></ProtectedRoute>} />
-            <Route path="/dashboard" element={<ProtectedRoute><TeacherDashboard /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
             <Route path="/present" element={<ProtectedRoute><MeetHome /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
