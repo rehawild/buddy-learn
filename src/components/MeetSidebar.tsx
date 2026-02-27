@@ -2,6 +2,7 @@ import { X, Send, Users, MessageSquare } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { fakeParticipants, fakeChatMessages } from "@/data/participants";
 import { supabase } from "@/integrations/supabase/client";
+import type { RoomParticipant } from "@/hooks/useRealtimeRoom";
 
 interface ChatMessage {
   sender: string;
@@ -14,6 +15,7 @@ interface MeetSidebarProps {
   onClose: () => void;
   roomCode?: string | null;
   userName?: string;
+  realtimeParticipants?: RoomParticipant[];
 }
 
 export default function MeetSidebar({ panel, onClose, roomCode, userName = "You" }: MeetSidebarProps) {
