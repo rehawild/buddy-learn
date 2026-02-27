@@ -29,7 +29,7 @@ export default function MeetRoom() {
   const hasUploadedSlides = uploadedSlides && uploadedSlides.length > 0;
 
   // Real camera & mic
-  const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio } = useMediaStream();
+  const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error: mediaError, isInIframe, retry: retryMedia } = useMediaStream();
   const selfVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
