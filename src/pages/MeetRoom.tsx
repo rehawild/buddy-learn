@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSessionSlides } from "@/hooks/useSessionSlides";
 import { useCoordinatorAgent } from "@/hooks/useCoordinatorAgent";
 import { useStudentAgent } from "@/hooks/useStudentAgent";
+import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { supabase } from "@/integrations/supabase/client";
 
 function stringToColor(str: string): string {
@@ -36,7 +37,7 @@ export default function MeetRoom() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomCode = searchParams.get("room");
-  const { role: authRole, displayName } = useAuth();
+  const { role: authRole, displayName, user } = useAuth();
   const isViewer = authRole !== "teacher";
   const userName = displayName || (isViewer ? "Student" : "Presenter");
 
@@ -156,13 +157,21 @@ export default function MeetRoom() {
   } = useStudentAgent({
     channel,
     isConnected,
-    studentId: localPeerId,
+    studentId: user?.id || localPeerId,
     studentName: userName,
     currentSlideIndex: sectionIdx,
     enabled: isViewer,
     fallbackLessonTitle: hasUploadedSlides
       ? (presentationTitle || "Presentation")
       : (lessons[lessonIdx]?.title || "Study Session"),
+  });
+
+  // ── Engagement Tracker (students only) ──
+  const engagementTracker = useEngagementTracker({
+    sessionId,
+    userId: user?.id,
+    userName,
+    enabled: isViewer,
   });
 
   // Viewer: sync state from presenter
@@ -244,18 +253,26 @@ export default function MeetRoom() {
     return () => clearTimeout(timerRef.current);
   }, [sectionIdx, lessonIdx, buddyEnabled, difficulty, presenting, isViewer, broadcastState, lesson?.sections, hasUploadedSlides]);
 
+  const answerTimestampRef = useRef(Date.now());
+  // Reset answer timer whenever a new question appears
+  useEffect(() => { answerTimestampRef.current = Date.now(); }, [effectiveQuestion]);
+
   const handleAnswer = useCallback((correct: boolean) => {
+    const responseTimeMs = Date.now() - answerTimestampRef.current;
     setResults((prev) => ({
       correct: prev.correct + (correct ? 1 : 0),
       total: prev.total + 1,
       concepts: [...new Set([...prev.concepts, section?.title || ""])].slice(-5),
     }));
 
+    // Track engagement
+    engagementTracker.recordQuestionResponse(correct, responseTimeMs, displayIdx);
+
     // If student agent is active, send response back to coordinator
     if (isViewer && hasUploadedSlides && aiActiveQuestion) {
       aiAnswerQuestion(correct, correct ? aiActiveQuestion.answer : "wrong");
     }
-  }, [section?.title, isViewer, hasUploadedSlides, aiActiveQuestion, aiAnswerQuestion]);
+  }, [section?.title, isViewer, hasUploadedSlides, aiActiveQuestion, aiAnswerQuestion, engagementTracker, displayIdx]);
 
   const handleDismiss = useCallback(() => {
     setActiveQuestion(null);
@@ -273,8 +290,9 @@ export default function MeetRoom() {
     const slideTitle = hasUploadedSlides
       ? (presentationTitle || "Presentation")
       : (section?.title ?? "");
+    engagementTracker.recordBuddyChat();
     aiSendChatMessage(message, slideContent, slideTitle);
-  }, [aiSendChatMessage, hasUploadedSlides, uploadedSlides, displayIdx, presentationTitle, section]);
+  }, [aiSendChatMessage, hasUploadedSlides, uploadedSlides, displayIdx, presentationTitle, section, engagementTracker]);
 
   const navigateSlide = (newIdx: number) => {
     if (isViewer && freeBrowse) {
@@ -317,6 +335,9 @@ export default function MeetRoom() {
   };
 
   const leaveCall = async () => {
+    // Flush engagement data before leaving
+    await engagementTracker.flush();
+
     // If presenter, mark session as ended in Supabase
     if (!isViewer && roomCode) {
       await supabase
@@ -756,6 +777,7 @@ export default function MeetRoom() {
         onLeave={leaveCall}
         gridMode={gridMode}
         onToggleGrid={() => setGridMode((p) => !p)}
+        onReaction={engagementTracker.recordReaction}
       />
 
       {/* Slide grid overlay (demo lessons only) */}

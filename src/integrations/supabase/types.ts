@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      engagement_events: {
+        Row: {
+          id: string
+          session_id: string
+          student_id: string
+          event_type: string
+          payload: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          student_id: string
+          event_type: string
+          payload?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          student_id?: string
+          event_type?: string
+          payload?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presentation_slides: {
         Row: {
           content_text: string | null
@@ -105,6 +140,7 @@ export type Database = {
       }
       session_engagement: {
         Row: {
+          attention_score: number | null
           avg_response_time: number | null
           buddy_interactions: number
           correct_answers: number
@@ -114,8 +150,11 @@ export type Database = {
           reactions_count: number
           session_id: string
           student_id: string
+          student_name: string | null
+          updated_at: string | null
         }
         Insert: {
+          attention_score?: number | null
           avg_response_time?: number | null
           buddy_interactions?: number
           correct_answers?: number
@@ -125,8 +164,11 @@ export type Database = {
           reactions_count?: number
           session_id: string
           student_id: string
+          student_name?: string | null
+          updated_at?: string | null
         }
         Update: {
+          attention_score?: number | null
           avg_response_time?: number | null
           buddy_interactions?: number
           correct_answers?: number
@@ -136,6 +178,8 @@ export type Database = {
           reactions_count?: number
           session_id?: string
           student_id?: string
+          student_name?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {

@@ -32,6 +32,7 @@ interface MeetBottomBarProps {
   onLeave: () => void;
   onToggleGrid?: () => void;
   gridMode?: boolean;
+  onReaction?: (emoji: string) => void;
 }
 
 const diffColors = { easy: "text-correct", medium: "text-buddy-warm", hard: "text-incorrect" } as const;
@@ -49,6 +50,7 @@ export default function MeetBottomBar({
   difficulty, onNextDifficulty,
   roomCode, isViewer, onLeave,
   onToggleGrid, gridMode,
+  onReaction,
 }: MeetBottomBarProps) {
   const [emojiOpen, setEmojiOpen] = useState(false);
 
@@ -120,7 +122,7 @@ export default function MeetBottomBar({
             </button>
           </PopoverTrigger>
           <PopoverContent side="top" className="w-auto p-2">
-            <EmojiReactions roomCode={roomCode} />
+            <EmojiReactions roomCode={roomCode} onReaction={onReaction} />
           </PopoverContent>
         </Popover>
       </div>

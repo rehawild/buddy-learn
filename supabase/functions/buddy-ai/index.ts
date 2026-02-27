@@ -199,6 +199,45 @@ Generate 1-3 questions about concepts the teacher emphasized verbally that go be
   return { questions };
 }
 
+const STUDENT_ASSESSMENT_SYSTEM = `You are StudyBuddy's teacher assistant. Given a student's engagement statistics from a lesson session, generate a brief 1-2 sentence assessment of their participation and learning.
+
+Rules:
+- Be constructive and specific — mention what went well AND areas for improvement.
+- Reference the actual numbers (accuracy, response time, attention) naturally.
+- Keep it to 1-2 sentences maximum.
+- Use a supportive, professional tone appropriate for a teacher reading about their student.`;
+
+async function handleStudentAssessment(
+  payload: {
+    studentName: string;
+    questionsAnswered: number;
+    correctAnswers: number;
+    avgResponseTime: number;
+    attentionScore: number;
+    reactionsCount: number;
+    buddyInteractions: number;
+    tabSwitchCount: number;
+    idleCount: number;
+  },
+  apiKey: string,
+) {
+  const accuracy = payload.questionsAnswered > 0
+    ? Math.round((payload.correctAnswers / payload.questionsAnswered) * 100)
+    : 0;
+
+  const userMessage = `Student: ${payload.studentName}
+Questions answered: ${payload.questionsAnswered} (${accuracy}% accuracy)
+Average response time: ${payload.avgResponseTime.toFixed(1)}s
+Attention score: ${payload.attentionScore}%
+Emoji reactions: ${payload.reactionsCount}
+Buddy chat interactions: ${payload.buddyInteractions}
+Tab switches: ${payload.tabSwitchCount}
+Idle periods: ${payload.idleCount}`;
+
+  const assessment = await callAzure(STUDENT_ASSESSMENT_SYSTEM, userMessage, apiKey, 0.6, 256);
+  return { assessment: assessment.trim() };
+}
+
 // ── Main handler ──
 
 Deno.serve(async (req) => {
@@ -226,6 +265,9 @@ Deno.serve(async (req) => {
         break;
       case "transcript-questions":
         result = await handleTranscriptQuestions(payload, apiKey);
+        break;
+      case "student-assessment":
+        result = await handleStudentAssessment(payload, apiKey);
         break;
       default:
         throw new Error(`Unknown action: ${action}`);

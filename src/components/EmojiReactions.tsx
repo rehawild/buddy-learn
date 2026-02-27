@@ -11,9 +11,10 @@ interface FloatingEmoji {
 
 interface EmojiReactionsProps {
   roomCode: string | null;
+  onReaction?: (emoji: string) => void;
 }
 
-export default function EmojiReactions({ roomCode }: EmojiReactionsProps) {
+export default function EmojiReactions({ roomCode, onReaction }: EmojiReactionsProps) {
   const [floating, setFloating] = useState<FloatingEmoji[]>([]);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -40,6 +41,7 @@ export default function EmojiReactions({ roomCode }: EmojiReactionsProps) {
 
   const handleClick = (emoji: string) => {
     addFloating(emoji);
+    onReaction?.(emoji);
     if (roomCode && channelRef.current) {
       channelRef.current.send({
         type: "broadcast",

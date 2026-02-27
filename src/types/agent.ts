@@ -38,7 +38,7 @@ export interface StudentResponseEvent {
 
 // ── Edge function request/response envelopes ──
 
-export type AgentAction = "pre-generate" | "buddy-chat" | "transcript-questions";
+export type AgentAction = "pre-generate" | "buddy-chat" | "transcript-questions" | "student-assessment";
 
 export interface PreGeneratePayload {
   slides: { index: number; title: string; content: string }[];

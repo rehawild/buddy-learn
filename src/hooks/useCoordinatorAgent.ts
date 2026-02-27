@@ -393,43 +393,6 @@ export function useCoordinatorAgent({
     };
   }, [enabled, channel]);
 
-  // ── 8. Persist engagement data periodically ──
-
-  useEffect(() => {
-    if (!enabled || !sessionId || studentResponses.length === 0) return;
-
-    const persist = async () => {
-      // Aggregate per-student
-      const byStudent = new Map<string, StudentResponseEvent[]>();
-      for (const r of studentResponses) {
-        const existing = byStudent.get(r.studentId) || [];
-        existing.push(r);
-        byStudent.set(r.studentId, existing);
-      }
-
-      for (const [studentId, responses] of byStudent) {
-        const correct = responses.filter((r) => r.correct).length;
-        const avgTime =
-          responses.reduce((sum, r) => sum + r.responseTimeMs, 0) / responses.length;
-
-        await supabase.from("session_engagement").upsert(
-          {
-            session_id: sessionId,
-            student_id: studentId,
-            questions_answered: responses.length,
-            correct_answers: correct,
-            avg_response_time: Math.round(avgTime),
-            buddy_interactions: responses.length,
-          },
-          { onConflict: "session_id,student_id" },
-        );
-      }
-    };
-
-    const timer = setInterval(persist, 10_000); // every 10s
-    return () => clearInterval(timer);
-  }, [enabled, sessionId, studentResponses]);
-
   return {
     questionBank,
     isPreGenerating,

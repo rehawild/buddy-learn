@@ -1,54 +1,122 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Users, Brain, TrendingUp, Zap, Clock, Target, Award, AlertTriangle } from "lucide-react";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Users, Brain, Zap, Target, Loader2, Sparkles } from "lucide-react";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { useTeacherSessions } from "@/hooks/useTeacherSessions";
+import { useSessionEngagement, type StudentRow } from "@/hooks/useSessionEngagement";
+import { supabase } from "@/integrations/supabase/client";
 import {
   mockStudents,
-  mockLessonEngagement,
   mockTimeline,
   mockDifficultyBreakdown,
   mockReactions,
 } from "@/data/mockEngagement";
 
-const difficultyColors: Record<string, string> = {
-  easy: "hsl(145, 60%, 45%)",
-  medium: "hsl(28, 90%, 58%)",
-  hard: "hsl(0, 72%, 55%)",
-};
-
 export default function TeacherDashboard() {
   const navigate = useNavigate();
-  const [selectedLesson, setSelectedLesson] = useState(mockLessonEngagement[0].lessonId);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const currentLesson = mockLessonEngagement.find((l) => l.lessonId === selectedLesson)!;
-  const totalAnswered = mockStudents.reduce((s, st) => s + st.questionsAnswered, 0);
-  const totalCorrect = mockStudents.reduce((s, st) => s + st.correctAnswers, 0);
+  // Session selector
+  const { sessions, loading: sessionsLoading } = useTeacherSessions();
+  const selectedSessionId = searchParams.get("session") || "";
+  const selectedSession = sessions.find((s) => s.id === selectedSessionId);
+
+  const setSelectedSession = (id: string) => {
+    if (id === "__mock__") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ session: id });
+    }
+  };
+
+  // Real engagement data
+  const { students: realStudents, timeline: realTimeline, difficultyBreakdown: realDifficulty, reactions: realReactions, loading: engagementLoading } =
+    useSessionEngagement(selectedSessionId || null);
+
+  // Use real data when available, fall back to mock
+  const hasRealData = selectedSessionId && realStudents.length > 0;
+  const students = hasRealData ? realStudents : mockStudents.map((s) => ({
+    ...s,
+    attentionScore: 0,
+    tabSwitchCount: 0,
+    idleCount: 0,
+  }));
+  const timeline = hasRealData ? realTimeline : mockTimeline;
+  const difficultyBreakdown = hasRealData ? realDifficulty : mockDifficultyBreakdown;
+  const reactions = hasRealData ? realReactions : mockReactions;
+
+  // KPIs
+  const totalAnswered = students.reduce((s, st) => s + st.questionsAnswered, 0);
+  const totalCorrect = students.reduce((s, st) => s + st.correctAnswers, 0);
   const classAvgAccuracy = totalAnswered ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
-  const avgBuddyInteractions = Math.round(mockStudents.reduce((s, st) => s + st.buddyInteractions, 0) / mockStudents.length);
+  const avgBuddyInteractions = students.length
+    ? Math.round(students.reduce((s, st) => s + st.buddyInteractions, 0) / students.length)
+    : 0;
 
+  // AI assessments cache
+  const [assessments, setAssessments] = useState<Record<string, string>>({});
+  const [assessmentLoading, setAssessmentLoading] = useState<Record<string, boolean>>({});
+
+  const requestAssessment = async (student: StudentRow) => {
+    if (assessments[student.studentId]) return;
+    setAssessmentLoading((prev) => ({ ...prev, [student.studentId]: true }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("buddy-ai", {
+        body: {
+          action: "student-assessment",
+          payload: {
+            studentName: student.name,
+            questionsAnswered: student.questionsAnswered,
+            correctAnswers: student.correctAnswers,
+            avgResponseTime: student.avgResponseTime,
+            attentionScore: student.attentionScore,
+            reactionsCount: student.reactionsCount,
+            buddyInteractions: student.buddyInteractions,
+            tabSwitchCount: student.tabSwitchCount,
+            idleCount: student.idleCount,
+          },
+        },
+      });
+
+      if (error || data?.error) {
+        setAssessments((prev) => ({ ...prev, [student.studentId]: "Assessment unavailable" }));
+      } else {
+        setAssessments((prev) => ({ ...prev, [student.studentId]: data.assessment }));
+      }
+    } catch {
+      setAssessments((prev) => ({ ...prev, [student.studentId]: "Assessment unavailable" }));
+    } finally {
+      setAssessmentLoading((prev) => ({ ...prev, [student.studentId]: false }));
+    }
+  };
+
+  // Chart configs
   const chartConfig = {
     attention: { label: "Attention", color: "hsl(168, 60%, 48%)" },
     participation: { label: "Participation", color: "hsl(28, 90%, 58%)" },
   };
 
-  const barData = mockDifficultyBreakdown.map((d) => ({
+  const barData = difficultyBreakdown.map((d) => ({
     difficulty: d.difficulty.charAt(0).toUpperCase() + d.difficulty.slice(1),
     correct: d.correct,
     incorrect: d.total - d.correct,
-    rate: Math.round((d.correct / d.total) * 100),
+    rate: d.total ? Math.round((d.correct / d.total) * 100) : 0,
   }));
 
   const barConfig = {
     correct: { label: "Correct", color: "hsl(145, 60%, 45%)" },
     incorrect: { label: "Incorrect", color: "hsl(0, 72%, 55%)" },
   };
+
+  const isLoading = sessionsLoading || engagementLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -64,69 +132,54 @@ export default function TeacherDashboard() {
           </div>
           <Badge variant="outline" className="hidden sm:flex gap-1.5 text-xs">
             <Users className="w-3.5 h-3.5" />
-            {mockStudents.length} students
+            {students.length} students
           </Badge>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Session Selector */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <label className="text-sm font-medium text-foreground flex-shrink-0">Session:</label>
+              <Select value={selectedSessionId || "__mock__"} onValueChange={setSelectedSession}>
+                <SelectTrigger className="w-full sm:w-[400px]">
+                  <SelectValue placeholder="Select a session..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__mock__">Demo data (no session selected)</SelectItem>
+                  {sessions.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.presentation_title || "Untitled"} — {s.room_code} ({new Date(s.started_at).toLocaleDateString()})
+                      {s.status === "active" ? " [Live]" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedSession && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant={selectedSession.status === "active" ? "default" : "secondary"} className="text-[10px]">
+                    {selectedSession.status}
+                  </Badge>
+                  <span>{new Date(selectedSession.started_at).toLocaleString()}</span>
+                </div>
+              )}
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+            </div>
+            {!hasRealData && selectedSessionId && !engagementLoading && (
+              <p className="mt-2 text-xs text-muted-foreground">No engagement data for this session yet. Showing demo data.</p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <KPICard icon={<Users className="w-4 h-4" />} label="Active Students" value={mockStudents.length.toString()} sub="in session" accent="primary" />
+          <KPICard icon={<Users className="w-4 h-4" />} label="Active Students" value={students.length.toString()} sub="in session" accent="primary" />
           <KPICard icon={<Target className="w-4 h-4" />} label="Class Accuracy" value={`${classAvgAccuracy}%`} sub={`${totalCorrect}/${totalAnswered} correct`} accent="correct" />
           <KPICard icon={<Brain className="w-4 h-4" />} label="Buddy Interactions" value={avgBuddyInteractions.toString()} sub="avg per student" accent="accent" />
-          <KPICard icon={<Zap className="w-4 h-4" />} label="Total Reactions" value={mockReactions.reduce((s, r) => s + r.count, 0).toString()} sub="across session" accent="primary" />
+          <KPICard icon={<Zap className="w-4 h-4" />} label="Total Reactions" value={reactions.reduce((s, r) => s + r.count, 0).toString()} sub="across session" accent="primary" />
         </div>
-
-        {/* Lesson Selector */}
-        <Tabs value={selectedLesson} onValueChange={setSelectedLesson}>
-          <TabsList className="w-full justify-start overflow-x-auto bg-secondary/50">
-            {mockLessonEngagement.map((l) => (
-              <TabsTrigger key={l.lessonId} value={l.lessonId} className="gap-1.5 text-xs sm:text-sm">
-                <span>{l.icon}</span>
-                <span className="hidden sm:inline">{l.lessonTitle}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {mockLessonEngagement.map((lesson) => (
-            <TabsContent key={lesson.lessonId} value={lesson.lessonId} className="space-y-6 mt-4">
-              {/* Lesson Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <MiniStat label="Avg Score" value={`${lesson.avgScore}%`} />
-                <MiniStat label="Completion" value={`${lesson.completionRate}%`} />
-                <MiniStat label="Time/Slide" value={`${lesson.avgTimePerSlide}s`} />
-                <MiniStat label="Students" value={lesson.totalStudents.toString()} />
-              </div>
-
-              {/* Hardest/Easiest */}
-              <div className="grid sm:grid-cols-2 gap-3">
-                <Card className="border-destructive/30 bg-destructive/5">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-destructive" />
-                      Hardest Question
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-foreground">{lesson.hardestQuestion}</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-primary/30 bg-primary/5">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Award className="w-4 h-4 text-primary" />
-                      Easiest Question
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-foreground">{lesson.easiestQuestion}</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          ))}
-        </Tabs>
 
         {/* Charts Row */}
         <div className="grid lg:grid-cols-2 gap-4">
@@ -137,16 +190,22 @@ export default function TeacherDashboard() {
               <CardDescription className="text-xs">Tracked via Buddy mascot interactions</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-[240px] w-full">
-                <AreaChart data={mockTimeline} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-                  <XAxis dataKey="time" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area type="monotone" dataKey="attention" stroke="var(--color-attention)" fill="var(--color-attention)" fillOpacity={0.15} strokeWidth={2} />
-                  <Area type="monotone" dataKey="participation" stroke="var(--color-participation)" fill="var(--color-participation)" fillOpacity={0.15} strokeWidth={2} />
-                </AreaChart>
-              </ChartContainer>
+              {timeline.length > 0 ? (
+                <ChartContainer config={chartConfig} className="h-[240px] w-full">
+                  <AreaChart data={timeline} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+                    <XAxis dataKey="time" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area type="monotone" dataKey="attention" stroke="var(--color-attention)" fill="var(--color-attention)" fillOpacity={0.15} strokeWidth={2} />
+                    <Area type="monotone" dataKey="participation" stroke="var(--color-participation)" fill="var(--color-participation)" fillOpacity={0.15} strokeWidth={2} />
+                  </AreaChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">
+                  No timeline data available
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -177,17 +236,21 @@ export default function TeacherDashboard() {
             <CardTitle className="text-sm">Live Reactions Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-3">
-              {mockReactions.map((r) => (
-                <div key={r.emoji} className="flex items-center gap-2 bg-secondary/60 rounded-lg px-3 py-2">
-                  <span className="text-xl">{r.emoji}</span>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{r.count}</p>
-                    <p className="text-[10px] text-muted-foreground">{r.label}</p>
+            {reactions.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {reactions.map((r) => (
+                  <div key={r.emoji} className="flex items-center gap-2 bg-secondary/60 rounded-lg px-3 py-2">
+                    <span className="text-xl">{r.emoji}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{r.count}</p>
+                      <p className="text-[10px] text-muted-foreground">{r.label}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No reactions recorded</p>
+            )}
           </CardContent>
         </Card>
 
@@ -206,14 +269,21 @@ export default function TeacherDashboard() {
                   <TableHead className="hidden sm:table-cell text-center">Avg Response</TableHead>
                   <TableHead className="hidden md:table-cell text-center">Buddy Chats</TableHead>
                   <TableHead className="hidden md:table-cell text-center">Reactions</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="hidden lg:table-cell">AI Assessment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[...mockStudents]
-                  .sort((a, b) => (b.correctAnswers / b.questionsAnswered) - (a.correctAnswers / a.questionsAnswered))
+                {[...students]
+                  .sort((a, b) => {
+                    const accA = a.questionsAnswered ? a.correctAnswers / a.questionsAnswered : 0;
+                    const accB = b.questionsAnswered ? b.correctAnswers / b.questionsAnswered : 0;
+                    return accB - accA;
+                  })
                   .map((s) => {
-                    const accuracy = Math.round((s.correctAnswers / s.questionsAnswered) * 100);
+                    const accuracy = s.questionsAnswered
+                      ? Math.round((s.correctAnswers / s.questionsAnswered) * 100)
+                      : 0;
                     const status = accuracy >= 80 ? "excellent" : accuracy >= 60 ? "good" : "needs-help";
                     return (
                       <TableRow key={s.studentId}>
@@ -229,13 +299,30 @@ export default function TeacherDashboard() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-center text-xs">{s.buddyInteractions}</TableCell>
                         <TableCell className="hidden md:table-cell text-center text-xs">{s.reactionsCount}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-center">
                           <Badge
                             variant={status === "needs-help" ? "destructive" : "secondary"}
                             className={`text-[10px] ${status === "excellent" ? "bg-primary/15 text-primary border-primary/30" : ""}`}
                           >
-                            {status === "excellent" ? "⭐ Excellent" : status === "good" ? "✓ Good" : "⚠ Needs Help"}
+                            {status === "excellent" ? "Excellent" : status === "good" ? "Good" : "Needs Help"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell max-w-[250px]">
+                          {assessments[s.studentId] ? (
+                            <p className="text-xs text-muted-foreground">{assessments[s.studentId]}</p>
+                          ) : assessmentLoading[s.studentId] ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-[10px] gap-1"
+                              onClick={() => requestAssessment(s as StudentRow)}
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              Assess
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -266,14 +353,5 @@ function KPICard({ icon, label, value, sub, accent }: { icon: React.ReactNode; l
         <p className="text-[11px] text-muted-foreground">{sub}</p>
       </CardContent>
     </Card>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-secondary/40 rounded-lg px-3 py-2.5 text-center">
-      <p className="text-lg font-bold text-foreground">{value}</p>
-      <p className="text-[10px] text-muted-foreground">{label}</p>
-    </div>
   );
 }
