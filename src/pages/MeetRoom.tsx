@@ -201,6 +201,7 @@ export default function MeetRoom() {
   };
 
   const leaveCall = () => {
+    stream?.getTracks().forEach((t) => t.stop());
     if (presenting && results.total > 0) {
       navigate("/recap", { state: { lessonTitle: slideTitle, ...results, concepts: results.concepts.slice(0, 3) } });
     } else {
