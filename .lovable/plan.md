@@ -1,49 +1,49 @@
 
 
-## Plan: Real-time Room System with Supabase Broadcast
+## Plan: Real-time Screen Share Presentation with 2-5 People
 
-### Implementation Steps
+### Approach
+Use **Supabase Realtime** (Broadcast channel) to sync presentation state across participants. One person presents (controls slides + answers buddy questions), and others watch the same content update in real-time. No WebRTC video/audio needed.
 
-**1. Create `useRealtimeRoom` hook** (`src/hooks/useRealtimeRoom.ts`)
-- Connect to Supabase Broadcast channel named `room:{code}`
-- Use Presence to track connected users (name, role)
-- Presenter broadcasts state: `{ lessonIdx, sectionIdx, activeQuestion, feedback, buddyEnabled, difficulty }`
-- Viewers subscribe and mirror state locally
-- Return: `{ broadcast, state, participants, isConnected, role }`
+### How it works
+1. **Presenter** creates a "room" → gets a shareable room code
+2. **Viewers** enter the room code to join
+3. Presenter's slide navigation, buddy questions, and answers broadcast to all viewers in real-time via Supabase Realtime Broadcast
+4. Viewers see the presentation content update live (read-only view)
 
-**2. Create room utility** (`src/lib/room.ts`)
-- `generateRoomCode()` → random 6-char alphanumeric code
-- Room code passed via URL search params: `?room=ABC123&role=presenter`
+### Prerequisites
+- Enable **Lovable Cloud** (for Supabase Realtime — no database tables needed, just Broadcast channels)
 
-**3. Update MeetHome.tsx**
-- "New meeting" generates a room code, navigates to `/lobby?room=ABC123&role=presenter`
-- "Enter a code" input + "Join" navigates to `/lobby?room={code}&role=viewer`
+### Implementation steps
 
-**4. Update MeetLobby.tsx**
-- Read `room` and `role` from search params
-- If presenter: show room code prominently with copy button ("Share this code")
-- If viewer: show "Joining room {code}..."
-- "Join now" navigates to `/meet?room={code}&role=viewer`
-- "Present" navigates to `/meet?room={code}&role=presenter`
+1. **Create a shared room system**
+   - Generate random 6-char room codes
+   - Add "Create room" and "Join room" flows to MeetHome/MeetLobby
+   - Store room code + role (presenter/viewer) in route state
 
-**5. Update MeetRoom.tsx**
-- Read `room` and `role` from search params
-- Connect to `useRealtimeRoom(roomCode, role)`
-- **Presenter**: existing behavior + broadcast every state change (lessonIdx, sectionIdx, activeQuestion, buddyEnabled, difficulty)
-- **Viewer**: receive broadcast state, render presentation read-only (hide slide nav buttons, hide buddy answer inputs), show "Presenter is controlling" badge
-- Show real participant count from Presence instead of fake count
-- Mix real presence participants with fake ones for visual fullness
+2. **Add a Realtime sync hook** (`src/hooks/useRealtimeRoom.ts`)
+   - Connect to a Supabase Broadcast channel named by room code
+   - Presenter broadcasts: `{ lessonIdx, sectionIdx, activeQuestion, feedback, buddyEnabled, difficulty }`
+   - Viewers listen and mirror state locally
 
-**6. Viewer-specific UI in MeetRoom**
-- Hide Previous/Next/Finish buttons
-- BuddyOverlay shows question + feedback but answer buttons disabled (view-only)
-- Replace "Presenting" badge with "Viewing — {presenterName} is presenting"
-- Hide buddy ON/OFF and difficulty controls from bottom bar
+3. **Update MeetRoom.tsx**
+   - If role = presenter: current behavior (controls slides, answers questions, broadcasts state changes)
+   - If role = viewer: render presentation content in read-only mode, state driven by broadcast messages
+   - Show participant count from Presence tracking
 
-### Technical Details
-- Supabase Broadcast is ephemeral — no DB tables needed
-- Channel name: `room:{code}` 
-- Broadcast event types: `state_sync` (full state), `presence_sync` (join/leave)
-- Presenter sends state on every change via `channel.send({ type: 'broadcast', event: 'state_sync', payload: {...} })`
-- Viewer listens: `channel.on('broadcast', { event: 'state_sync' }, callback)`
+4. **Update MeetHome.tsx**
+   - Add "Create room" button → generates code, navigates to `/lobby?room=ABC123&role=presenter`
+   - Add "Join with code" input → navigates to `/lobby?room=ABC123&role=viewer`
+
+5. **Update MeetLobby.tsx**
+   - Show room code prominently so presenter can share it
+   - "Join now" connects to the broadcast channel
+
+6. **Viewer-specific UI**
+   - Hide slide navigation controls (Next/Prev)
+   - Show "Presenter is controlling" indicator
+   - Buddy overlay visible but non-interactive (or optionally let viewers answer independently)
+
+### No database tables needed
+Supabase Broadcast is ephemeral — no persistence required for this MVP.
 

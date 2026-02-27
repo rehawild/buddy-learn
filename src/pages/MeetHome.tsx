@@ -1,11 +1,40 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Video, Keyboard, Plus, Calendar, Users } from "lucide-react";
+import { Video, Keyboard, Plus, Calendar, Users, Copy, Check } from "lucide-react";
 import buddyImg from "@/assets/buddy-owl.png";
+import { generateRoomCode } from "@/lib/room";
 
 export default function MeetHome() {
   const navigate = useNavigate();
   const [meetingCode, setMeetingCode] = useState("");
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleNewMeeting = () => {
+    const code = generateRoomCode();
+    setGeneratedCode(code);
+  };
+
+  const handleStartMeeting = () => {
+    if (generatedCode) {
+      navigate(`/lobby?room=${generatedCode}&role=presenter`);
+    }
+  };
+
+  const handleJoin = () => {
+    const code = meetingCode.trim().toUpperCase();
+    if (code) {
+      navigate(`/lobby?room=${code}&role=viewer`);
+    }
+  };
+
+  const handleCopy = () => {
+    if (generatedCode) {
+      navigator.clipboard.writeText(generatedCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -41,7 +70,7 @@ export default function MeetHome() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <button
-              onClick={() => navigate("/lobby")}
+              onClick={handleNewMeeting}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
             >
               <Plus className="w-5 h-5" />
@@ -54,13 +83,15 @@ export default function MeetHome() {
                 <input
                   type="text"
                   value={meetingCode}
-                  onChange={(e) => setMeetingCode(e.target.value)}
-                  placeholder="Enter a code or link"
-                  className="w-full pl-10 pr-4 py-3 text-sm rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  onChange={(e) => setMeetingCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                  placeholder="Enter a code"
+                  maxLength={6}
+                  className="w-full pl-10 pr-4 py-3 text-sm rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono tracking-widest"
                 />
               </div>
               <button
-                onClick={() => meetingCode.trim() && navigate("/lobby")}
+                onClick={handleJoin}
                 disabled={!meetingCode.trim()}
                 className="px-5 py-3 rounded-lg text-sm font-semibold text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -68,6 +99,25 @@ export default function MeetHome() {
               </button>
             </div>
           </div>
+
+          {/* Generated code popup */}
+          {generatedCode && (
+            <div className="p-4 rounded-xl bg-card border border-border shadow-lg space-y-3 fade-up">
+              <p className="text-sm text-muted-foreground">Here's your meeting code. Share it with others:</p>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold font-mono tracking-[0.3em] text-foreground">{generatedCode}</span>
+                <button onClick={handleCopy} className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground hover:text-foreground">
+                  {copied ? <Check className="w-4 h-4 text-correct" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <button
+                onClick={handleStartMeeting}
+                className="w-full px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity text-sm"
+              >
+                Start meeting
+              </button>
+            </div>
+          )}
 
           <div className="border-t border-border pt-6">
             <p className="text-sm text-muted-foreground">
@@ -79,7 +129,7 @@ export default function MeetHome() {
           </div>
         </div>
 
-        {/* Right side - carousel / illustration */}
+        {/* Right side - illustration */}
         <div className="relative w-full max-w-lg">
           <div className="aspect-[4/3] rounded-2xl bg-card border border-border overflow-hidden shadow-2xl">
             <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-6">
@@ -89,7 +139,7 @@ export default function MeetHome() {
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-foreground">Get a link you can share</h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
-                  Click <span className="font-semibold text-foreground">New meeting</span> to get a link you can send to people you want to study with
+                  Click <span className="font-semibold text-foreground">New meeting</span> to get a code you can send to people you want to study with
                 </p>
               </div>
 

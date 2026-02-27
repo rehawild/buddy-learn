@@ -1,12 +1,31 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Mic, MicOff, Video, VideoOff, Monitor } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Mic, MicOff, Video, VideoOff, Monitor, Copy, Check, Users } from "lucide-react";
 import buddyImg from "@/assets/buddy-owl.png";
 
 export default function MeetLobby() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roomCode = searchParams.get("room") || "";
+  const role = (searchParams.get("role") as "presenter" | "viewer") || "viewer";
+
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(roomCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleJoin = () => {
+    navigate(`/meet?room=${roomCode}&role=${role}`);
+  };
+
+  const handlePresent = () => {
+    navigate(`/meet?room=${roomCode}&role=presenter`);
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
@@ -45,41 +64,52 @@ export default function MeetLobby() {
         </div>
 
         {/* Join panel */}
-        <div className="w-full lg:w-72 space-y-6 text-center lg:text-left">
+        <div className="w-full lg:w-80 space-y-6 text-center lg:text-left">
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-foreground">Ready to join?</h2>
-            <p className="text-sm text-muted-foreground">study-session-demo</p>
+            {roomCode && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Room code</p>
+                <div className="flex items-center gap-2 justify-center lg:justify-start">
+                  <span className="text-xl font-bold font-mono tracking-[0.3em] text-foreground">{roomCode}</span>
+                  <button onClick={handleCopy} className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground hover:text-foreground">
+                    {copied ? <Check className="w-4 h-4 text-correct" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 justify-center lg:justify-start">
-            <div className="flex -space-x-2">
-              {["SC", "AR", "JP", "PW"].map((init, i) => (
-                <div
-                  key={init}
-                  className="w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-semibold text-foreground"
-                  style={{ backgroundColor: ["hsl(280 60% 55%)", "hsl(28 90% 58%)", "hsl(200 70% 50%)", "hsl(340 65% 50%)"][i], zIndex: 4 - i }}
-                >
-                  {init}
-                </div>
-              ))}
+          {role === "presenter" && (
+            <div className="flex items-center gap-2 justify-center lg:justify-start px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+              <Monitor className="w-4 h-4 text-primary" />
+              <span className="text-xs text-primary font-medium">You'll be presenting</span>
             </div>
-            <span className="text-xs text-muted-foreground">4 others are here</span>
-          </div>
+          )}
+
+          {role === "viewer" && (
+            <div className="flex items-center gap-2 justify-center lg:justify-start px-3 py-2 rounded-lg bg-secondary border border-border">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Joining as viewer</span>
+            </div>
+          )}
 
           <div className="space-y-3">
             <button
-              onClick={() => navigate("/meet")}
+              onClick={handleJoin}
               className="w-full px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
             >
               Join now
             </button>
-            <button
-              onClick={() => navigate("/meet?present=true")}
-              className="w-full px-6 py-3 rounded-full bg-secondary text-foreground font-semibold hover:bg-secondary/80 transition-colors flex items-center justify-center gap-2"
-            >
-              <Monitor className="w-4 h-4" />
-              Present
-            </button>
+            {role === "viewer" && (
+              <button
+                onClick={handlePresent}
+                className="w-full px-6 py-3 rounded-full bg-secondary text-foreground font-semibold hover:bg-secondary/80 transition-colors flex items-center justify-center gap-2"
+              >
+                <Monitor className="w-4 h-4" />
+                Present instead
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2 justify-center lg:justify-start">
