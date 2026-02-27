@@ -456,7 +456,7 @@ export default function MeetRoom() {
                 ) : (
                   <div className="h-full grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
                     {fakeParticipants.map((p) => (
-                      <ParticipantTile key={p.id} participant={{ ...p, ...(p.isSelf ? { isCameraOff: !cameraOn, isMuted: !micOn } : {}) }} size="large" speaking={p.id === "p4"} />
+                      <ParticipantTile key={p.id} participant={{ ...p, ...(p.isSelf ? { isCameraOff: !videoEnabled, isMuted: !audioEnabled } : {}) }} size="large" speaking={p.id === "p4"} />
                     ))}
                   </div>
                 )}
