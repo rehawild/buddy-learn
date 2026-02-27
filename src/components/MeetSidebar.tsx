@@ -1,6 +1,5 @@
 import { X, Send, Users, MessageSquare } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { fakeParticipants, fakeChatMessages } from "@/data/participants";
 import { supabase } from "@/integrations/supabase/client";
 import type { RoomParticipant } from "@/hooks/useRealtimeRoom";
 
@@ -20,7 +19,7 @@ interface MeetSidebarProps {
 
 export default function MeetSidebar({ panel, onClose, roomCode, userName = "You", realtimeParticipants = [] }: MeetSidebarProps) {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>(fakeChatMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -92,18 +91,11 @@ export default function MeetSidebar({ panel, onClose, roomCode, userName = "You"
                   <span className="text-xs text-muted-foreground capitalize">{p.role}</span>
                 </div>
               ))
-            : fakeParticipants.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/50 transition-colors">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-foreground flex-shrink-0"
-                    style={{ backgroundColor: p.color }}
-                  >
-                    {p.initials}
-                  </div>
-                  <span className="text-sm text-foreground flex-1 truncate">{p.isSelf ? "You" : p.name}</span>
-                  {p.isMuted && <span className="text-xs text-muted-foreground">Muted</span>}
-                </div>
-              ))}
+            : (
+              <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                No participants yet
+              </div>
+            )}
         </div>
       ) : (
         <>

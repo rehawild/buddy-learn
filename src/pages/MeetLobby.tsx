@@ -17,14 +17,16 @@ export default function MeetLobby() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [copied, setCopied] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [sessionNotFound, setSessionNotFound] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // Server-side: verify teacher owns the session
+  // Server-side: verify access
   useEffect(() => {
     if (!roomCode || !user) return;
 
     const checkAccess = async () => {
       if (isTeacher) {
+        // Teachers: verify they own the session
         const { data: session } = await supabase
           .from("sessions")
           .select("teacher_id")
@@ -33,6 +35,18 @@ export default function MeetLobby() {
 
         if (session && session.teacher_id !== user.id) {
           setAccessDenied(true);
+        }
+      } else {
+        // Students: verify an active session exists with this code
+        const { data: session } = await supabase
+          .from("sessions")
+          .select("id")
+          .eq("room_code", roomCode)
+          .eq("status", "active")
+          .maybeSingle();
+
+        if (!session) {
+          setSessionNotFound(true);
         }
       }
       setChecking(false);
@@ -73,6 +87,24 @@ export default function MeetLobby() {
         <h2 className="text-xl font-bold text-foreground">Access Denied</h2>
         <p className="text-muted-foreground text-center max-w-md">
           Teachers can only present their own sessions. You cannot join another teacher's session.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+        >
+          Go back home
+        </button>
+      </div>
+    );
+  }
+
+  if (sessionNotFound) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-4">
+        <AlertTriangle className="w-12 h-12 text-destructive" />
+        <h2 className="text-xl font-bold text-foreground">Session Not Found</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          No active session was found with code <span className="font-mono font-bold">{roomCode}</span>. Please check the code and try again.
         </p>
         <button
           onClick={() => navigate("/")}
