@@ -383,9 +383,11 @@ export default function MeetRoom() {
                           {p.name} <span className="text-muted-foreground capitalize">({p.role})</span>
                         </div>
                       ))
-                    : fakeParticipants.filter((p) => !p.isSelf).slice(0, 4).map((p) => (
-                        <ParticipantTile key={p.id} participant={p} size="filmstrip" />
-                      ))}
+                    : (
+                      <div className="px-3 py-1.5 text-xs text-muted-foreground">
+                        Waiting for participants…
+                      </div>
+                    )}
                 </div>
               )}
 
