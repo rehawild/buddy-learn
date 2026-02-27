@@ -1,25 +1,72 @@
 import { X, Send, Users, MessageSquare } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fakeParticipants, fakeChatMessages } from "@/data/participants";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ChatMessage {
+  sender: string;
+  text: string;
+  time: string;
+}
 
 interface MeetSidebarProps {
   panel: "chat" | "people";
   onClose: () => void;
+  roomCode?: string | null;
+  userName?: string;
 }
 
-export default function MeetSidebar({ panel, onClose }: MeetSidebarProps) {
+export default function MeetSidebar({ panel, onClose, roomCode, userName = "You" }: MeetSidebarProps) {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState(fakeChatMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>(fakeChatMessages);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Subscribe to chat broadcast
+  useEffect(() => {
+    if (!roomCode || panel !== "chat") return;
+
+    const channel = supabase.channel(`chat:${roomCode}`);
+    channel.on("broadcast", { event: "chat_message" }, ({ payload }) => {
+      setMessages((prev) => [...prev, payload as ChatMessage]);
+    });
+    channel.subscribe();
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [roomCode, panel]);
+
+  // Auto-scroll
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    setMessages((prev) => [...prev, { sender: "You", text: message, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
+    const msg: ChatMessage = {
+      sender: userName,
+      text: message,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+    setMessages((prev) => [...prev, msg]);
     setMessage("");
+
+    // Broadcast to others
+    if (roomCode && channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "chat_message",
+        payload: msg,
+      });
+    }
   };
 
   return (
-    <div className="w-80 h-full bg-meet-bar border-l border-border flex flex-col">
+    <div className="w-80 h-full bg-meet-bar border-l border-border flex flex-col flex-shrink-0">
       {/* Header */}
       <div className="h-14 flex items-center justify-between px-4 border-b border-border">
         <div className="flex items-center gap-2">
@@ -58,6 +105,7 @@ export default function MeetSidebar({ panel, onClose }: MeetSidebarProps) {
                 <p className="text-sm text-secondary-foreground">{m.text}</p>
               </div>
             ))}
+            <div ref={bottomRef} />
           </div>
           <form onSubmit={handleSend} className="p-3 border-t border-border flex gap-2">
             <input
