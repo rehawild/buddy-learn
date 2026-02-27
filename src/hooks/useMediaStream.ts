@@ -10,8 +10,8 @@ export function useMediaStream(options: UseMediaStreamOptions = { video: true, a
   const [videoEnabled, setVideoEnabled] = useState(options.video ?? true);
   const [audioEnabled, setAudioEnabled] = useState(options.audio ?? true);
   const [error, setError] = useState<string | null>(null);
-  const [isInIframe, setIsInIframe] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const isInIframeRef = useRef(false);
 
   const acquire = useCallback(() => {
     setError(null);
@@ -23,7 +23,7 @@ export function useMediaStream(options: UseMediaStreamOptions = { video: true, a
       })
       .catch((err) => {
         const inIframe = window.self !== window.top;
-        setIsInIframe(inIframe);
+        isInIframeRef.current = inIframe;
         if (inIframe) {
           setError("Camera/mic blocked by iframe sandbox. Open in a new tab to use your camera.");
         } else {
@@ -63,6 +63,8 @@ export function useMediaStream(options: UseMediaStreamOptions = { video: true, a
       setAudioEnabled(next);
     }
   }, [audioEnabled]);
+
+  const isInIframe = isInIframeRef.current;
 
   return { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error, isInIframe, retry };
 }
