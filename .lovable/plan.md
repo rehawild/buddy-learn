@@ -15,8 +15,16 @@
 - **4 lessons** (Photosynthesis 6 slides, Renaissance 6 slides, Gravity 6 slides, French Revolution 6 slides)
 - **Emoji reactions** via Broadcast (👍🔥❓👏😂💡 with floating animation)
 - **Real Presence participants** in filmstrip and People sidebar
+- **Phase 1: Database & Storage** — presentations, presentation_slides, sessions, session_engagement tables + storage buckets (presentations, slide-images, avatars)
+- **Phase 2: Profile Page** — /profile with avatar upload, display name editing, role badge, session history
+- **Phase 4: Presentation Upload** — Teacher upload PDF/PPTX on MeetHome, create session in Supabase
+- **Phase 5: Role-Differentiated Meeting** — Auth-derived roles (teacher=presenter, student=viewer), role-based MeetHome/Lobby/Room
+- **Phase 6: Real Camera & Mic** — getUserMedia in lobby with live video preview and toggle controls
 
 ### Remaining (nice-to-haves)
+- Phase 3: Dashboard improvements (real Supabase queries, session picker, presentations list)
+- Edge function for PDF processing (extract pages/slide count)
+- Save engagement data on session end
 - Image/image-text slide layout
 - Presenter laser pointer cursor broadcast
 - Recording / export to PDF
