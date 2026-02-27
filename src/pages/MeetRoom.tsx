@@ -480,10 +480,10 @@ export default function MeetRoom() {
 
       {/* Bottom bar */}
       <MeetBottomBar
-        micOn={micOn}
-        onToggleMic={() => setMicOn((p) => !p)}
-        cameraOn={cameraOn}
-        onToggleCamera={() => setCameraOn((p) => !p)}
+        micOn={audioEnabled}
+        onToggleMic={toggleAudio}
+        cameraOn={videoEnabled}
+        onToggleCamera={toggleVideo}
         handRaised={handRaised}
         onToggleHand={() => setHandRaised((p) => !p)}
         presenting={presenting}
