@@ -1,18 +1,33 @@
-import { MicOff, VideoOff, Pin } from "lucide-react";
+import { useRef, useEffect } from "react";
+import { MicOff, Hand, Pin } from "lucide-react";
 import type { Participant } from "@/data/participants";
 
 interface ParticipantTileProps {
   participant: Participant;
   size?: "large" | "small" | "filmstrip";
   speaking?: boolean;
+  stream?: MediaStream | null;
+  handRaised?: boolean;
 }
 
-export default function ParticipantTile({ participant, size = "large", speaking = false }: ParticipantTileProps) {
+export default function ParticipantTile({ participant, size = "large", speaking = false, stream, handRaised }: ParticipantTileProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream ?? null;
+    }
+  }, [stream]);
+
   const sizeClasses = {
     large: "min-h-[200px]",
     small: "min-h-[120px]",
     filmstrip: "w-[180px] h-[110px] flex-shrink-0",
   };
+
+  const avatarSize = size === "filmstrip" ? 40 : size === "small" ? 48 : 72;
+  const fontSize = size === "filmstrip" ? 14 : size === "small" ? 16 : 24;
+  const showVideo = stream && !participant.isCameraOff;
 
   return (
     <div
@@ -20,33 +35,33 @@ export default function ParticipantTile({ participant, size = "large", speaking 
         speaking ? "ring-2 ring-primary" : ""
       }`}
     >
-      {/* Avatar */}
-      <div
-        className="rounded-full flex items-center justify-center text-foreground font-semibold select-none"
-        style={{
-          backgroundColor: participant.color,
-          width: size === "filmstrip" ? 40 : size === "small" ? 48 : 72,
-          height: size === "filmstrip" ? 40 : size === "small" ? 48 : 72,
-          fontSize: size === "filmstrip" ? 14 : size === "small" ? 16 : 24,
-        }}
-      >
-        {participant.initials}
-      </div>
+      {showVideo ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={participant.isSelf}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={participant.isSelf ? { transform: "scaleX(-1)" } : undefined}
+        />
+      ) : (
+        <div
+          className="rounded-full flex items-center justify-center text-foreground font-semibold select-none"
+          style={{
+            backgroundColor: participant.color,
+            width: avatarSize,
+            height: avatarSize,
+            fontSize,
+          }}
+        >
+          {participant.initials}
+        </div>
+      )}
 
-      {/* Camera off overlay */}
-      {participant.isCameraOff && (
-        <div className="absolute inset-0 bg-meet-surface/80 flex items-center justify-center">
-          <div
-            className="rounded-full flex items-center justify-center text-foreground font-semibold"
-            style={{
-              backgroundColor: participant.color,
-              width: size === "filmstrip" ? 40 : size === "small" ? 48 : 72,
-              height: size === "filmstrip" ? 40 : size === "small" ? 48 : 72,
-              fontSize: size === "filmstrip" ? 14 : size === "small" ? 16 : 24,
-            }}
-          >
-            {participant.initials}
-          </div>
+      {/* Hand raised indicator */}
+      {handRaised && (
+        <div className="absolute top-2 left-2 p-1 rounded-full bg-yellow-500 text-white animate-bounce">
+          <Hand className="w-3.5 h-3.5" />
         </div>
       )}
 

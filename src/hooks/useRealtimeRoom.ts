@@ -16,6 +16,7 @@ export interface RoomParticipant {
   name: string;
   role: "presenter" | "viewer";
   joinedAt: string;
+  handRaised?: boolean;
 }
 
 const DEFAULT_STATE: RoomState = {
@@ -29,9 +30,11 @@ const DEFAULT_STATE: RoomState = {
 
 export function useRealtimeRoom(roomCode: string | null, role: "presenter" | "viewer", userName: string = "You") {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const localPeerIdRef = useRef(crypto.randomUUID());
   const [isConnected, setIsConnected] = useState(false);
   const [remoteState, setRemoteState] = useState<RoomState>(DEFAULT_STATE);
   const [participants, setParticipants] = useState<RoomParticipant[]>([]);
+  const presenceMetaRef = useRef<Record<string, unknown>>({});
 
   // Connect to channel
   useEffect(() => {
@@ -57,21 +60,26 @@ export function useRealtimeRoom(roomCode: string | null, role: "presenter" | "vi
             name: p.name || _key,
             role: p.role || "viewer",
             joinedAt: p.joinedAt || new Date().toISOString(),
+            handRaised: p.handRaised ?? false,
           });
         });
       });
       setParticipants(pList);
     });
 
+    const initialMeta = {
+      id: localPeerIdRef.current,
+      name: userName,
+      role,
+      joinedAt: new Date().toISOString(),
+      handRaised: false,
+    };
+    presenceMetaRef.current = initialMeta;
+
     channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
         setIsConnected(true);
-        await channel.track({
-          id: crypto.randomUUID(),
-          name: userName,
-          role,
-          joinedAt: new Date().toISOString(),
-        });
+        await channel.track(initialMeta);
       }
     });
 
@@ -97,11 +105,24 @@ export function useRealtimeRoom(roomCode: string | null, role: "presenter" | "vi
     [role],
   );
 
+  // Update presence metadata (e.g. for hand raise)
+  const updatePresence = useCallback(
+    (updates: Record<string, unknown>) => {
+      if (!channelRef.current) return;
+      presenceMetaRef.current = { ...presenceMetaRef.current, ...updates };
+      channelRef.current.track(presenceMetaRef.current);
+    },
+    [],
+  );
+
   return {
     isConnected,
     remoteState,
     participants,
     broadcast,
     participantCount: participants.length,
+    channel: channelRef.current,
+    localPeerId: localPeerIdRef.current,
+    updatePresence,
   };
 }

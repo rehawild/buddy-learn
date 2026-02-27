@@ -1,14 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 
-interface UseMediaStreamOptions {
-  video?: boolean;
-  audio?: boolean;
+interface MediaStreamState {
+  stream: MediaStream | null;
+  videoEnabled: boolean;
+  audioEnabled: boolean;
+  toggleVideo: () => void;
+  toggleAudio: () => void;
+  error: string | null;
+  isInIframe: boolean;
+  retry: () => void;
 }
 
-export function useMediaStream(options: UseMediaStreamOptions = { video: true, audio: true }) {
+const MediaStreamContext = createContext<MediaStreamState | null>(null);
+
+export function MediaStreamProvider({ children }: { children: React.ReactNode }) {
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [videoEnabled, setVideoEnabled] = useState(options.video ?? true);
-  const [audioEnabled, setAudioEnabled] = useState(options.audio ?? true);
+  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [audioEnabled, setAudioEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isInIframeRef = useRef(false);
@@ -16,7 +24,7 @@ export function useMediaStream(options: UseMediaStreamOptions = { video: true, a
   const acquire = useCallback(() => {
     setError(null);
     navigator.mediaDevices
-      .getUserMedia({ video: options.video, audio: options.audio })
+      .getUserMedia({ video: true, audio: true })
       .then((s) => {
         streamRef.current = s;
         setStream(s);
@@ -30,7 +38,7 @@ export function useMediaStream(options: UseMediaStreamOptions = { video: true, a
           setError(err.message || "Camera/mic access denied");
         }
       });
-  }, [options.video, options.audio]);
+  }, []);
 
   useEffect(() => {
     acquire();
@@ -64,7 +72,28 @@ export function useMediaStream(options: UseMediaStreamOptions = { video: true, a
     }
   }, [audioEnabled]);
 
-  const isInIframe = isInIframeRef.current;
+  const value: MediaStreamState = {
+    stream,
+    videoEnabled,
+    audioEnabled,
+    toggleVideo,
+    toggleAudio,
+    error,
+    isInIframe: isInIframeRef.current,
+    retry,
+  };
 
-  return { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error, isInIframe, retry };
+  return (
+    <MediaStreamContext.Provider value={value}>
+      {children}
+    </MediaStreamContext.Provider>
+  );
+}
+
+export function useMediaStream(): MediaStreamState {
+  const ctx = useContext(MediaStreamContext);
+  if (!ctx) {
+    throw new Error("useMediaStream must be used within a MediaStreamProvider");
+  }
+  return ctx;
 }
