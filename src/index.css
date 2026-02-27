@@ -116,7 +116,7 @@
 
   /* Slide transitions */
   .slide-enter {
-    animation: slide-fade-in 0.35s ease-out;
+    animation: slide-fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   /* Emoji reaction float */
