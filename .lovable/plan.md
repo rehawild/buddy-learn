@@ -1,49 +1,57 @@
 
 
-## Plan: Real-time Screen Share Presentation with 2-5 People
+## Assessment: What's Done vs. What's Missing
 
-### Approach
-Use **Supabase Realtime** (Broadcast channel) to sync presentation state across participants. One person presents (controls slides + answers buddy questions), and others watch the same content update in real-time. No WebRTC video/audio needed.
+### Done
+- 16:9 slide renderer with 4 layouts (title, content, two-column, quote)
+- Slide thumbnail sidebar with lesson switcher
+- Slide progress bar and navigation controls
+- Speaker notes panel (collapsible)
+- Fullscreen mode with keyboard navigation
+- Real-time sync via Supabase Broadcast (presenter/viewer roles)
+- Real-time chat sidebar
+- Participant filmstrip with fake avatars
+- Buddy overlay with questions
+- Room creation and join flow
 
-### How it works
-1. **Presenter** creates a "room" → gets a shareable room code
-2. **Viewers** enter the room code to join
-3. Presenter's slide navigation, buddy questions, and answers broadcast to all viewers in real-time via Supabase Realtime Broadcast
-4. Viewers see the presentation content update live (read-only view)
+### Missing — Worth Building Next
 
-### Prerequisites
-- Enable **Lovable Cloud** (for Supabase Realtime — no database tables needed, just Broadcast channels)
+**1. Slide transition animations**
+- Currently slides swap instantly with no animation
+- Add CSS fade or slide-left transitions between slides using `key` + CSS animation
 
-### Implementation steps
+**2. Slide theme / background variety**
+- All slides have the same plain white background
+- Add per-slide or per-lesson color themes (dark slide, gradient, accent-colored header bar)
 
-1. **Create a shared room system**
-   - Generate random 6-char room codes
-   - Add "Create room" and "Join room" flows to MeetHome/MeetLobby
-   - Store room code + role (presenter/viewer) in route state
+**3. More content in lessons**
+- Only 2 lessons with 4 slides each — feels like a demo
+- Add at least 2 more lessons (e.g. Math, History) with 6-8 slides each and varied layouts
 
-2. **Add a Realtime sync hook** (`src/hooks/useRealtimeRoom.ts`)
-   - Connect to a Supabase Broadcast channel named by room code
-   - Presenter broadcasts: `{ lessonIdx, sectionIdx, activeQuestion, feedback, buddyEnabled, difficulty }`
-   - Viewers listen and mirror state locally
+**4. Image support in slides**
+- `image` field exists in the data model but no layout uses it
+- Add an `image` or `image-text` layout that renders an image alongside text
 
-3. **Update MeetRoom.tsx**
-   - If role = presenter: current behavior (controls slides, answers questions, broadcasts state changes)
-   - If role = viewer: render presentation content in read-only mode, state driven by broadcast messages
-   - Show participant count from Presence tracking
+**5. Presenter cursor / pointer indicator**
+- No way for viewers to see what the presenter is pointing at
+- Broadcast mouse position so viewers see a laser-dot overlay
 
-4. **Update MeetHome.tsx**
-   - Add "Create room" button → generates code, navigates to `/lobby?room=ABC123&role=presenter`
-   - Add "Join with code" input → navigates to `/lobby?room=ABC123&role=viewer`
+**6. Reactions (emoji reactions from viewers)**
+- Viewers have no way to give quick feedback during presentation
+- Add floating emoji reactions (👍🔥❓) that broadcast and animate on all screens
 
-5. **Update MeetLobby.tsx**
-   - Show room code prominently so presenter can share it
-   - "Join now" connects to the broadcast channel
+**7. Recording / export**
+- No way to save the presentation session or export slides
+- Could export slides as images or generate a PDF
 
-6. **Viewer-specific UI**
-   - Hide slide navigation controls (Next/Prev)
-   - Show "Presenter is controlling" indicator
-   - Buddy overlay visible but non-interactive (or optionally let viewers answer independently)
+**8. Participant names from Presence**
+- People sidebar still shows hardcoded fake participants
+- Wire real Presence data into the sidebar so actual connected users appear
 
-### No database tables needed
-Supabase Broadcast is ephemeral — no persistence required for this MVP.
+### Recommended Priority Order
+1. Slide transitions (quick polish win)
+2. More lesson content + image layout (makes the demo feel real)
+3. Participant names from Presence (makes multiplayer feel real)
+4. Emoji reactions (engagement feature)
+5. Presenter cursor broadcast (nice-to-have)
 
