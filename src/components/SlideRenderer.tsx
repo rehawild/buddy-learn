@@ -133,10 +133,13 @@ export default function SlideRenderer({
   totalSlides,
   className = "",
   interactive = true,
+  theme = "default",
+  slideKey,
 }: SlideRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scale = useScale(containerRef);
   const Layout = layoutMap[section.layout] || ContentLayout;
+  const themeClass = theme !== "default" ? `theme-${theme}` : "";
 
   return (
     <div
@@ -146,7 +149,8 @@ export default function SlideRenderer({
     >
       {/* 1920x1080 slide surface */}
       <div
-        className="slide-surface absolute"
+        key={slideKey}
+        className={`slide-surface absolute ${themeClass} ${slideKey ? "slide-enter" : ""}`}
         style={{
           width: 1920,
           height: 1080,
