@@ -9,6 +9,7 @@ export interface Question {
   reinforcement: string;
   correction: string;
   difficulty: "easy" | "medium" | "hard";
+  topic?: string;
 }
 
 export interface Section {

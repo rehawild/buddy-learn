@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "azure-mcp": {
+      "type": "stdio",
+      "command": "/home/robi/.local/share/fnm/node-versions/v24.14.0/installation/bin/azmcp",
+      "args": [
+        "server",
+        "start"
+      ],
+      "env": {
+        "PATH": "/home/robi/.local/share/fnm/node-versions/v24.14.0/installation/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      }
+    }
+  }
+}

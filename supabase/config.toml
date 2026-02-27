@@ -1,1 +1,4 @@
 project_id = "yujcrqaiqnxyisgrcadi"
+
+[functions.buddy-ai]
+verify_jwt = false

@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MonitorOff,
   Hand, PhoneOff, MessageSquare, Users, Maximize, Minimize,
-  PanelLeftClose, PanelLeft, SmilePlus, LayoutGrid,
+  PanelLeftClose, PanelLeft, SmilePlus, LayoutGrid, BookOpen,
 } from "lucide-react";
 import EmojiReactions from "@/components/EmojiReactions";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -20,8 +20,9 @@ interface MeetBottomBarProps {
   onToggleFullscreen: () => void;
   showThumbnails: boolean;
   onToggleThumbnails: () => void;
-  sidePanel: "chat" | "people" | null;
-  onToggleSidePanel: (panel: "chat" | "people") => void;
+  sidePanel: "chat" | "people" | "questions" | null;
+  onToggleSidePanel: (panel: "chat" | "people" | "questions") => void;
+  hasUploadedSlides?: boolean;
   buddyEnabled: boolean;
   onToggleBuddy: () => void;
   difficulty: "easy" | "medium" | "hard";
@@ -43,6 +44,7 @@ export default function MeetBottomBar({
   isFullscreen, onToggleFullscreen,
   showThumbnails, onToggleThumbnails,
   sidePanel, onToggleSidePanel,
+  hasUploadedSlides,
   buddyEnabled, onToggleBuddy,
   difficulty, onNextDifficulty,
   roomCode, isViewer, onLeave,
@@ -103,6 +105,12 @@ export default function MeetBottomBar({
         <button onClick={() => onToggleSidePanel("people")} className={`p-2.5 md:p-3 rounded-full transition-colors ${sidePanel === "people" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
           <Users className="w-4 h-4 md:w-5 md:h-5" />
         </button>
+
+        {!isViewer && hasUploadedSlides && (
+          <button onClick={() => onToggleSidePanel("questions")} className={`p-2.5 md:p-3 rounded-full transition-colors ${sidePanel === "questions" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+            <BookOpen className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
+        )}
 
         {/* Emoji popover */}
         <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>

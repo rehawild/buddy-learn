@@ -34,6 +34,7 @@ export function useRealtimeRoom(roomCode: string | null, role: "presenter" | "vi
   const [isConnected, setIsConnected] = useState(false);
   const [remoteState, setRemoteState] = useState<RoomState>(DEFAULT_STATE);
   const [participants, setParticipants] = useState<RoomParticipant[]>([]);
+  const [channelState, setChannelState] = useState<RealtimeChannel | null>(null);
   const presenceMetaRef = useRef<Record<string, unknown>>({});
 
   // Connect to channel
@@ -84,10 +85,12 @@ export function useRealtimeRoom(roomCode: string | null, role: "presenter" | "vi
     });
 
     channelRef.current = channel;
+    setChannelState(channel);
 
     return () => {
       channel.unsubscribe();
       channelRef.current = null;
+      setChannelState(null);
       setIsConnected(false);
     };
   }, [roomCode, role, userName]);
@@ -121,7 +124,7 @@ export function useRealtimeRoom(roomCode: string | null, role: "presenter" | "vi
     participants,
     broadcast,
     participantCount: participants.length,
-    channel: channelRef.current,
+    channel: channelState,
     localPeerId: localPeerIdRef.current,
     updatePresence,
   };

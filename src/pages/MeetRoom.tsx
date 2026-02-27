@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Eye, Users } from "lucide-react";
+import { ChevronRight, ChevronLeft, Eye, Users, Loader2 } from "lucide-react";
 import { useMediaStream } from "@/hooks/useMediaStream";
 import { lessons, type Question } from "@/data/lessons";
 import ParticipantTile from "@/components/ParticipantTile";
@@ -12,10 +12,13 @@ import SlideThumbnail from "@/components/SlideThumbnail";
 import SlideProgress from "@/components/SlideProgress";
 import SpeakerNotes from "@/components/SpeakerNotes";
 import SlideGridOverlay from "@/components/SlideGridOverlay";
+import TeacherQuestionPanel from "@/components/TeacherQuestionPanel";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionSlides } from "@/hooks/useSessionSlides";
+import { useCoordinatorAgent } from "@/hooks/useCoordinatorAgent";
+import { useStudentAgent } from "@/hooks/useStudentAgent";
 import { supabase } from "@/integrations/supabase/client";
 
 function stringToColor(str: string): string {
@@ -49,7 +52,7 @@ export default function MeetRoom() {
     }
   }, [stream]);
   const [presenting, setPresenting] = useState(!isViewer);
-  const [sidePanel, setSidePanel] = useState<"chat" | "people" | null>(null);
+  const [sidePanel, setSidePanel] = useState<"chat" | "people" | "questions" | null>(null);
   const [handRaised, setHandRaised] = useState(false);
   const [showThumbnails, setShowThumbnails] = useState(!isViewer);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -94,6 +97,61 @@ export default function MeetRoom() {
     enabled: isConnected,
   });
 
+  // Session ID lookup (for engagement persistence)
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!roomCode) return;
+    supabase
+      .from("sessions")
+      .select("id")
+      .eq("room_code", roomCode)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setSessionId(data.id);
+      });
+  }, [roomCode]);
+
+  // ── AI Coordinator Agent (teacher with uploaded slides) ──
+  const {
+    questionBank,
+    isPreGenerating,
+    preGenerateError,
+    currentTranscript,
+    coveredSlides,
+    isListening,
+    dispatchAll,
+    dispatchSingleQuestion,
+    isQuestionDispatched,
+    dispatchCount,
+  } = useCoordinatorAgent({
+    slides: uploadedSlides,
+    channel,
+    isConnected,
+    lessonTitle: presentationTitle || "Presentation",
+    difficulty,
+    currentSlideIndex: sectionIdx,
+    sessionId,
+    enabled: !isViewer && hasUploadedSlides === true,
+  });
+
+  // ── AI Student Agent (student with uploaded slides) ──
+  const {
+    activeQuestion: aiActiveQuestion,
+    answerQuestion: aiAnswerQuestion,
+    dismissQuestion: aiDismissQuestion,
+    queueLength: aiQueueLength,
+    chatHistory: aiChatHistory,
+    isChatLoading: aiChatLoading,
+    sendChatMessage: aiSendChatMessage,
+  } = useStudentAgent({
+    channel,
+    isConnected,
+    studentId: localPeerId,
+    studentName: userName,
+    currentSlideIndex: sectionIdx,
+    enabled: isViewer && hasUploadedSlides === true,
+  });
+
   // Viewer: sync state from presenter
   useEffect(() => {
     if (!isViewer) return;
@@ -130,6 +188,13 @@ export default function MeetRoom() {
   const slideTitle = hasUploadedSlides
     ? (presentationTitle || "Presentation")
     : (lesson?.title || "Study Session");
+
+  // Determine which question to show in BuddyOverlay
+  // For uploaded slides: students get AI-dispatched questions, teachers see nothing (they dispatch)
+  // For demo lessons: existing hardcoded question logic
+  const effectiveQuestion = hasUploadedSlides
+    ? (isViewer ? aiActiveQuestion : null)
+    : activeQuestion;
 
   // Broadcast helper
   const broadcastState = useCallback((overrides: Partial<RoomState> = {}) => {
@@ -172,13 +237,31 @@ export default function MeetRoom() {
       total: prev.total + 1,
       concepts: [...new Set([...prev.concepts, section?.title || ""])].slice(-5),
     }));
-  }, [section?.title]);
+
+    // If student agent is active, send response back to coordinator
+    if (isViewer && hasUploadedSlides && aiActiveQuestion) {
+      aiAnswerQuestion(correct, correct ? aiActiveQuestion.answer : "wrong");
+    }
+  }, [section?.title, isViewer, hasUploadedSlides, aiActiveQuestion, aiAnswerQuestion]);
 
   const handleDismiss = useCallback(() => {
     setActiveQuestion(null);
     setActiveQuestionIdx(null);
+    if (isViewer && hasUploadedSlides) {
+      aiDismissQuestion();
+    }
     if (!isViewer) broadcastState({ activeQuestionIdx: null });
-  }, [isViewer, broadcastState]);
+  }, [isViewer, broadcastState, hasUploadedSlides, aiDismissQuestion]);
+
+  const handleBuddyChat = useCallback((message: string) => {
+    const slideContent = hasUploadedSlides
+      ? (uploadedSlides![displayIdx]?.contentText || `Slide ${displayIdx + 1}`)
+      : (section?.content ?? "");
+    const slideTitle = hasUploadedSlides
+      ? (presentationTitle || "Presentation")
+      : (section?.title ?? "");
+    aiSendChatMessage(message, slideContent, slideTitle);
+  }, [aiSendChatMessage, hasUploadedSlides, uploadedSlides, displayIdx, presentationTitle, section]);
 
   const navigateSlide = (newIdx: number) => {
     if (isViewer && freeBrowse) {
@@ -236,7 +319,7 @@ export default function MeetRoom() {
     }
   };
 
-  const toggleSidePanel = (panel: "chat" | "people") => {
+  const toggleSidePanel = (panel: "chat" | "people" | "questions") => {
     setSidePanel((prev) => (prev === panel ? null : panel));
   };
 
@@ -430,6 +513,57 @@ export default function MeetRoom() {
                 </div>
               )}
 
+              {/* AI Coordinator status (teacher with uploaded slides) */}
+              {!isViewer && hasUploadedSlides && (
+                <div className="mx-4 mt-2 space-y-1.5">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs">
+                    {isPreGenerating ? (
+                      <div className="flex items-center gap-2 text-primary">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>AI analyzing presentation...</span>
+                      </div>
+                    ) : preGenerateError ? (
+                      <div className="text-destructive">
+                        AI error: {preGenerateError}
+                      </div>
+                    ) : questionBank ? (
+                      <div className="flex items-center gap-3 text-muted-foreground flex-1 min-w-0">
+                        <span className="flex items-center gap-1 flex-shrink-0">
+                          <span className="w-2 h-2 rounded-full bg-green-500" />
+                          AI Ready ({questionBank.length} slides)
+                        </span>
+                        {isListening && (
+                          <span className="flex items-center gap-1 flex-shrink-0">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            Listening
+                          </span>
+                        )}
+                        <span className="flex-shrink-0">{coveredSlides.size} covered</span>
+                        <button
+                          onClick={dispatchAll}
+                          className="px-2 py-0.5 rounded text-[10px] font-semibold transition-colors flex-shrink-0 bg-secondary text-foreground hover:bg-secondary/80"
+                        >
+                          Send all questions
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Live transcript */}
+                  {questionBank && isListening && (
+                    <div className="px-3 py-2 rounded-lg border border-border bg-secondary/30 text-xs">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="font-medium text-muted-foreground">Live transcript</span>
+                      </div>
+                      <p className="text-foreground/70 italic truncate">
+                        {currentTranscript || "Speak to see your words here..."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Viewer: presenter position indicator */}
               {isViewer && freeBrowse && displayIdx !== presenterSlide && (
                 <div className="mx-4 mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary">
@@ -485,12 +619,15 @@ export default function MeetRoom() {
                     )}
 
                     <BuddyOverlay
-                      question={activeQuestion}
+                      question={effectiveQuestion}
                       difficulty={difficulty}
                       enabled={buddyEnabled}
                       onAnswer={handleAnswer}
                       onDismiss={handleDismiss}
-                      readOnly={isViewer}
+                      readOnly={isViewer && !hasUploadedSlides}
+                      chatHistory={isViewer && hasUploadedSlides ? aiChatHistory : undefined}
+                      isChatLoading={isViewer && hasUploadedSlides ? aiChatLoading : undefined}
+                      onSendChat={isViewer && hasUploadedSlides ? handleBuddyChat : undefined}
                     />
                     {/* Self-view PIP */}
                     <div className="absolute bottom-14 right-4 w-36 h-24 rounded-lg overflow-hidden border-2 border-border shadow-lg bg-meet-bar z-10">
@@ -559,7 +696,18 @@ export default function MeetRoom() {
               {presenting && !isViewer && !hasUploadedSlides && section && <SpeakerNotes notes={section.speakerNotes} />}
             </div>
 
-            {sidePanel && (
+            {sidePanel === "questions" ? (
+              <TeacherQuestionPanel
+                questionBank={questionBank}
+                isPreGenerating={isPreGenerating}
+                preGenerateError={preGenerateError}
+                onDispatchSingle={dispatchSingleQuestion}
+                onDispatchAll={dispatchAll}
+                isQuestionDispatched={isQuestionDispatched}
+                dispatchCount={dispatchCount}
+                onClose={() => setSidePanel(null)}
+              />
+            ) : sidePanel ? (
               <MeetSidebar
                 panel={sidePanel}
                 onClose={() => setSidePanel(null)}
@@ -567,7 +715,7 @@ export default function MeetRoom() {
                 userName={userName}
                 realtimeParticipants={realtimeParticipants}
               />
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -592,6 +740,7 @@ export default function MeetRoom() {
         onToggleThumbnails={() => setShowThumbnails((p) => !p)}
         sidePanel={sidePanel}
         onToggleSidePanel={toggleSidePanel}
+        hasUploadedSlides={hasUploadedSlides || false}
         buddyEnabled={buddyEnabled}
         onToggleBuddy={toggleBuddy}
         difficulty={difficulty}
