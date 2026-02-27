@@ -12,6 +12,10 @@ export interface Question {
 export interface Section {
   title: string;
   content: string;
+  layout: "title" | "content" | "two-column" | "quote";
+  bullets?: string[];
+  speakerNotes?: string;
+  image?: string;
   questions: Question[];
 }
 
@@ -31,9 +35,23 @@ export const lessons: Lesson[] = [
     icon: "🌿",
     sections: [
       {
+        title: "Photosynthesis: How Plants Make Food",
+        layout: "title",
+        content: "Understanding how green plants convert sunlight into chemical energy — the foundation of life on Earth.",
+        speakerNotes: "Welcome everyone. Today we'll explore one of the most important biochemical processes on the planet. Start with the big picture before diving into mechanisms.",
+        questions: [],
+      },
+      {
         title: "What is Photosynthesis?",
-        content:
-          "Photosynthesis is the process by which green plants convert sunlight into chemical energy. Plants absorb light using a pigment called chlorophyll, which is found in organelles called chloroplasts. The overall equation is: 6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂. This means plants take in carbon dioxide and water, and produce glucose and oxygen.",
+        layout: "content",
+        content: "Photosynthesis is the process by which green plants convert sunlight into chemical energy. Plants absorb light using a pigment called chlorophyll, which is found in organelles called chloroplasts.",
+        bullets: [
+          "Overall equation: 6CO₂ + 6H₂O + light → C₆H₁₂O₆ + 6O₂",
+          "Inputs: Carbon dioxide + Water + Light energy",
+          "Outputs: Glucose + Oxygen",
+          "Occurs in chloroplasts containing chlorophyll",
+        ],
+        speakerNotes: "Emphasize the equation — students should memorize it. Highlight that oxygen is a byproduct, not the main goal.",
         questions: [
           {
             highlight: "chlorophyll",
@@ -59,8 +77,15 @@ export const lessons: Lesson[] = [
       },
       {
         title: "The Light Reactions",
-        content:
-          "The light-dependent reactions occur in the thylakoid membranes of chloroplasts. When photons strike chlorophyll, electrons are excited and passed along an electron transport chain. This process splits water molecules (photolysis), releasing oxygen as a by-product. The energy captured is stored in ATP and NADPH, which power the next stage.",
+        layout: "two-column",
+        content: "The light-dependent reactions occur in the thylakoid membranes of chloroplasts. When photons strike chlorophyll, electrons are excited and passed along an electron transport chain.",
+        bullets: [
+          "Location: Thylakoid membranes",
+          "Process: Photolysis splits water → releases O₂",
+          "Energy carriers produced: ATP & NADPH",
+          "Requires direct sunlight",
+        ],
+        speakerNotes: "Use the two-column layout to contrast location vs. process. The left side has the narrative, right side has the key facts.",
         questions: [
           {
             highlight: "thylakoid membranes",
@@ -85,8 +110,16 @@ export const lessons: Lesson[] = [
       },
       {
         title: "The Calvin Cycle",
-        content:
-          "The Calvin cycle (light-independent reactions) takes place in the stroma of chloroplasts. It uses ATP and NADPH from the light reactions to fix CO₂ into a 3-carbon molecule called G3P. Three turns of the cycle produce one molecule of G3P, which can be combined to form glucose. The enzyme RuBisCO catalyzes the first step of carbon fixation.",
+        layout: "content",
+        content: "The Calvin cycle (light-independent reactions) takes place in the stroma of chloroplasts. It uses ATP and NADPH from the light reactions to fix CO₂ into a 3-carbon molecule called G3P.",
+        bullets: [
+          "Location: Stroma of chloroplasts",
+          "Uses ATP + NADPH from light reactions",
+          "Fixes CO₂ into G3P (3-carbon molecule)",
+          "3 turns → 1 G3P molecule → combined into glucose",
+          "Key enzyme: RuBisCO (most abundant protein on Earth)",
+        ],
+        speakerNotes: "Stress that 'light-independent' doesn't mean it happens in the dark — it just doesn't directly need photons. RuBisCO is a great trivia fact.",
         questions: [
           {
             highlight: "stroma",
@@ -118,9 +151,24 @@ export const lessons: Lesson[] = [
     icon: "🎨",
     sections: [
       {
+        title: "The Renaissance: A Rebirth of Ideas",
+        layout: "title",
+        content: "Exploring the cultural revolution that transformed Europe — from art and science to philosophy and politics.",
+        speakerNotes: "Set the stage: the Renaissance wasn't just about pretty paintings. It reshaped how humans think about themselves and the world.",
+        questions: [],
+      },
+      {
         title: "Origins of the Renaissance",
-        content:
-          "The Renaissance began in 14th-century Italy, particularly in wealthy city-states like Florence, Venice, and Rome. The word 'Renaissance' means 'rebirth' in French, referring to a renewed interest in classical Greek and Roman culture. Wealthy patrons like the Medici family funded artists, architects, and scholars, making Florence the cradle of this cultural revolution.",
+        layout: "content",
+        content: "The Renaissance began in 14th-century Italy, particularly in wealthy city-states like Florence, Venice, and Rome. The word 'Renaissance' means 'rebirth' in French, referring to a renewed interest in classical Greek and Roman culture.",
+        bullets: [
+          "Started in 14th-century Italy (Florence, Venice, Rome)",
+          "'Renaissance' = 'Rebirth' (French)",
+          "Revival of classical Greek & Roman culture",
+          "Funded by wealthy patrons like the Medici family",
+          "Florence = cradle of the cultural revolution",
+        ],
+        speakerNotes: "Mention that Florence's wealth came from banking and trade. The Medici connection to art patronage is key.",
         questions: [
           {
             highlight: "rebirth",
@@ -145,8 +193,16 @@ export const lessons: Lesson[] = [
       },
       {
         title: "Art and Innovation",
-        content:
-          "Renaissance artists revolutionized art with techniques like linear perspective, chiaroscuro (light and shadow), and anatomical accuracy. Leonardo da Vinci's Mona Lisa and The Last Supper exemplify the era's mastery. Michelangelo's Sistine Chapel ceiling took four years to complete. These artists were also scientists and engineers — Leonardo designed flying machines and studied human anatomy through dissection.",
+        layout: "two-column",
+        content: "Renaissance artists revolutionized art with techniques like linear perspective, chiaroscuro (light and shadow), and anatomical accuracy. These artists were also scientists and engineers.",
+        bullets: [
+          "Linear perspective → depth & realism",
+          "Chiaroscuro → dramatic light & shadow",
+          "Leonardo da Vinci: Mona Lisa, The Last Supper",
+          "Michelangelo: Sistine Chapel ceiling (4 years)",
+          "Artists doubled as scientists & engineers",
+        ],
+        speakerNotes: "Leonardo's flying machines and anatomical drawings show the Renaissance ideal of the 'universal man.' Michelangelo considered himself a sculptor first.",
         questions: [
           {
             highlight: "linear perspective",
@@ -172,8 +228,15 @@ export const lessons: Lesson[] = [
       },
       {
         title: "Legacy and Spread",
-        content:
-          "The Renaissance spread from Italy to Northern Europe through trade, diplomacy, and the printing press invented by Johannes Gutenberg around 1440. The printing press made books affordable and accelerated the spread of ideas. Humanism — the belief in human potential and the study of classical texts — became the intellectual foundation of the era, influencing education, politics, and religion for centuries.",
+        layout: "quote",
+        content: "The Renaissance spread from Italy to Northern Europe through trade, diplomacy, and the printing press invented by Johannes Gutenberg around 1440. Humanism — the belief in human potential and the study of classical texts — became the intellectual foundation of the era.",
+        bullets: [
+          "Gutenberg's printing press (c. 1440) → affordable books",
+          "Ideas spread via trade routes & diplomacy",
+          "Humanism: focus on human potential & classical texts",
+          "Influenced education, politics, and religion for centuries",
+        ],
+        speakerNotes: "End with the printing press as a technology multiplier — compare to the internet. Humanism is the thread that connects everything.",
         questions: [
           {
             highlight: "printing press",
