@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Auth from "./pages/Auth";
+import LandingPage from "./pages/LandingPage";
 import MeetHome from "./pages/MeetHome";
 import MeetLobby from "./pages/MeetLobby";
 import MeetRoom from "./pages/MeetRoom";
@@ -18,14 +19,14 @@ const queryClient = new QueryClient();
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Loading…</div>;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/landing" replace />;
   return <>{children}</>;
 }
 
 function TeacherRoute({ children }: { children: React.ReactNode }) {
   const { user, role, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Loading…</div>;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/landing" replace />;
   if (role !== "teacher") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -37,6 +38,13 @@ function AuthRoute() {
   return <Auth />;
 }
 
+function LandingRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Loading…</div>;
+  if (user) return <Navigate to="/" replace />;
+  return <LandingPage />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -45,6 +53,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            <Route path="/landing" element={<LandingRoute />} />
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/" element={<ProtectedRoute><MeetHome /></ProtectedRoute>} />
             <Route path="/lobby" element={<ProtectedRoute><MeetLobby /></ProtectedRoute>} />
