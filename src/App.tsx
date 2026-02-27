@@ -7,6 +7,7 @@ import MeetHome from "./pages/MeetHome";
 import MeetLobby from "./pages/MeetLobby";
 import MeetRoom from "./pages/MeetRoom";
 import Recap from "./pages/Recap";
+import TeacherDashboard from "./pages/TeacherDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/lobby" element={<MeetLobby />} />
           <Route path="/meet" element={<MeetRoom />} />
           <Route path="/recap" element={<Recap />} />
+          <Route path="/dashboard" element={<TeacherDashboard />} />
           <Route path="/present" element={<MeetHome />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
