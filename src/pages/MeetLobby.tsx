@@ -1,20 +1,45 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Mic, MicOff, Video, VideoOff, Monitor, Copy, Check, Users } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Monitor, Copy, Check, Users, AlertTriangle } from "lucide-react";
 import buddyImg from "@/assets/buddy-owl.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaStream } from "@/hooks/useMediaStream";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function MeetLobby() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomCode = searchParams.get("room") || "";
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const isTeacher = role === "teacher";
 
   const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error } = useMediaStream();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [copied, setCopied] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // Server-side: verify teacher owns the session
+  useEffect(() => {
+    if (!roomCode || !user) return;
+
+    const checkAccess = async () => {
+      if (isTeacher) {
+        const { data: session } = await supabase
+          .from("sessions")
+          .select("teacher_id")
+          .eq("room_code", roomCode)
+          .maybeSingle();
+
+        if (session && session.teacher_id !== user.id) {
+          setAccessDenied(true);
+        }
+      }
+      setChecking(false);
+    };
+
+    checkAccess();
+  }, [roomCode, user, isTeacher]);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -29,10 +54,35 @@ export default function MeetLobby() {
   };
 
   const handleJoin = () => {
-    // Stop the preview stream before navigating
     stream?.getTracks().forEach((t) => t.stop());
     navigate(`/meet?room=${roomCode}`);
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Checking access…</p>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-4">
+        <AlertTriangle className="w-12 h-12 text-destructive" />
+        <h2 className="text-xl font-bold text-foreground">Access Denied</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Teachers can only present their own sessions. You cannot join another teacher's session.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+        >
+          Go back home
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
@@ -54,7 +104,6 @@ export default function MeetLobby() {
               </div>
             )}
 
-            {/* Controls */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
               <button
                 onClick={toggleAudio}
