@@ -22,7 +22,7 @@ export default function Landing() {
         </div>
 
         <button
-          onClick={() => navigate("/present")}
+          onClick={() => navigate("/")}
           className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-lg hover:opacity-90 transition-opacity shadow-lg"
         >
           <Play className="w-5 h-5" />
