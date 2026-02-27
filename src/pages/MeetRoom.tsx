@@ -14,6 +14,7 @@ import SlideRenderer from "@/components/SlideRenderer";
 import SlideThumbnail from "@/components/SlideThumbnail";
 import SlideProgress from "@/components/SlideProgress";
 import SpeakerNotes from "@/components/SpeakerNotes";
+import EmojiReactions from "@/components/EmojiReactions";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
 
 export default function MeetRoom() {
