@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState, type ReactNode } from "react";
 import type { Section } from "@/data/lessons";
 
+export type SlideTheme = "default" | "dark" | "gradient" | "warm" | "ocean";
+
 interface SlideRendererProps {
   section: Section;
   lessonTitle?: string;
@@ -8,7 +10,9 @@ interface SlideRendererProps {
   slideNumber?: number;
   totalSlides?: number;
   className?: string;
-  interactive?: boolean; // false for thumbnails
+  interactive?: boolean;
+  theme?: SlideTheme;
+  slideKey?: string; // unique key for transition animations
 }
 
 function useScale(containerRef: React.RefObject<HTMLDivElement | null>) {
