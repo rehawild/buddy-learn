@@ -378,6 +378,7 @@ export default function MeetRoom() {
                 onClose={() => setSidePanel(null)}
                 roomCode={roomCode}
                 userName={isViewer ? "Viewer" : "Presenter"}
+                realtimeParticipants={realtimeParticipants}
               />
             )}
           </div>
