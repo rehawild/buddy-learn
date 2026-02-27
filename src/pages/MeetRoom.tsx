@@ -20,8 +20,9 @@ export default function MeetRoom() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomCode = searchParams.get("room");
-  const { role: authRole } = useAuth();
+  const { role: authRole, displayName } = useAuth();
   const isViewer = authRole !== "teacher";
+  const userName = displayName || (isViewer ? "Student" : "Presenter");
 
   // Fetch uploaded slides for this session
   const { slides: uploadedSlides, loading: slidesLoading, presentationTitle } = useSessionSlides(roomCode);
