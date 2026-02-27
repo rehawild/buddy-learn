@@ -440,6 +440,10 @@ export default function MeetRoom() {
 
         <div className="w-px h-8 bg-border mx-1" />
 
+        <EmojiReactions roomCode={roomCode} />
+
+        <div className="w-px h-8 bg-border mx-1" />
+
         <button onClick={leaveCall} className="p-3 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors">
           <PhoneOff className="w-5 h-5" />
         </button>
