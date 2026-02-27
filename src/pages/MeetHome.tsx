@@ -1,31 +1,30 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Video, Keyboard, Plus, Calendar, Users, Copy, Check, LayoutDashboard, LogOut, Upload, FileText, User } from "lucide-react";
+import { Video, Keyboard, Upload, FileText, User, Copy, Check, LayoutDashboard, LogOut } from "lucide-react";
 import buddyImg from "@/assets/buddy-owl.png";
 import { generateRoomCode } from "@/lib/room";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { parsePresentation, uploadSlides } from "@/lib/parsePresentation";
+
+type UploadPhase = "idle" | "uploading" | "parsing" | "processing" | "done";
 
 export default function MeetHome() {
   const navigate = useNavigate();
-  const { role, signOut, user, avatarUrl, displayName } = useAuth();
+  const { role, signOut, user, avatarUrl } = useAuth();
   const { toast } = useToast();
   const [meetingCode, setMeetingCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [uploadedFile, setUploadedFile] = useState<{ name: string; id: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isTeacher = role === "teacher";
 
   const handleNewMeeting = () => {
-    if (isTeacher) {
-      fileInputRef.current?.click();
-    } else {
-      const code = generateRoomCode();
-      setGeneratedCode(code);
-    }
+    fileInputRef.current?.click();
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,45 +35,58 @@ export default function MeetHome() {
       return;
     }
 
-    setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${user.id}/${Date.now()}.${ext}`;
+    try {
+      // Phase 1: Upload raw file
+      setUploadPhase("uploading");
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage.from("presentations").upload(path, file);
-    if (uploadError) {
-      toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
-      setUploading(false);
-      return;
-    }
+      const { error: uploadError } = await supabase.storage.from("presentations").upload(path, file);
+      if (uploadError) throw new Error(uploadError.message);
 
-    const title = file.name.replace(/\.[^.]+$/, "");
-    const { data, error } = await supabase.from("presentations").insert({
-      teacher_id: user.id,
-      title,
-      file_path: path,
-      slide_count: 0,
-    }).select("id").single();
+      const title = file.name.replace(/\.[^.]+$/, "");
+      const { data, error } = await supabase
+        .from("presentations")
+        .insert({ teacher_id: user.id, title, file_path: path, slide_count: 0 })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
 
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      setUploadedFile({ name: title, id: data.id });
+      const presentationId = data.id;
+      setUploadedFile({ name: title, id: presentationId });
+
+      // Phase 2: Parse file client-side
+      setUploadPhase("parsing");
+      const slides = await parsePresentation(file);
+
+      // Phase 3: Upload slide images
+      setUploadPhase("processing");
+      setUploadProgress({ current: 0, total: slides.length });
+      await uploadSlides(presentationId, user.id, slides, (current, total) => {
+        setUploadProgress({ current, total });
+      });
+
+      // Done
+      setUploadPhase("done");
       const code = generateRoomCode();
       setGeneratedCode(code);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+      setUploadPhase("idle");
     }
-    setUploading(false);
+
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleStartMeeting = async () => {
     if (!generatedCode || !user) return;
-    if (isTeacher) {
-      await supabase.from("sessions").insert({
-        teacher_id: user.id,
-        presentation_id: uploadedFile?.id || null,
-        room_code: generatedCode,
-        status: "active",
-      });
-    }
+    await supabase.from("sessions").insert({
+      teacher_id: user.id,
+      presentation_id: uploadedFile?.id || null,
+      room_code: generatedCode,
+      status: "active",
+    });
     navigate(`/lobby?room=${generatedCode}`);
   };
 
@@ -89,6 +101,16 @@ export default function MeetHome() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const isProcessing = uploadPhase !== "idle" && uploadPhase !== "done";
+
+  const phaseLabel: Record<UploadPhase, string> = {
+    idle: "",
+    uploading: "Uploading file…",
+    parsing: "Parsing slides…",
+    processing: `Processing slide ${uploadProgress.current}/${uploadProgress.total}…`,
+    done: "",
   };
 
   return (
@@ -141,37 +163,55 @@ export default function MeetHome() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            {isTeacher && (
-              <button onClick={handleNewMeeting} disabled={uploading} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
-                {uploading ? (
-                  <span className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
-                ) : (
-                  <Upload className="w-5 h-5" />
-                )}
-                {uploading ? "Uploading…" : "Upload & Present"}
-              </button>
-            )}
-            <input ref={fileInputRef} type="file" accept=".pdf,.pptx,.ppt" className="hidden" onChange={handleFileUpload} />
-
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text" value={meetingCode}
-                  onChange={(e) => setMeetingCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-                  placeholder="Enter a code"
-                  maxLength={6}
-                  className="w-full pl-10 pr-4 py-3 text-sm rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono tracking-widest"
-                />
+            {isTeacher ? (
+              <>
+                <button onClick={handleNewMeeting} disabled={isProcessing} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+                  {isProcessing ? (
+                    <span className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
+                  ) : (
+                    <Upload className="w-5 h-5" />
+                  )}
+                  {isProcessing ? phaseLabel[uploadPhase] : "Upload & Present"}
+                </button>
+                <input ref={fileInputRef} type="file" accept=".pdf,.pptx,.ppt" className="hidden" onChange={handleFileUpload} />
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={meetingCode}
+                    onChange={(e) => setMeetingCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                    placeholder="Enter a code"
+                    maxLength={6}
+                    className="w-full pl-10 pr-4 py-3 text-sm rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono tracking-widest"
+                  />
+                </div>
+                <button onClick={handleJoin} disabled={!meetingCode.trim()} className="px-5 py-3 rounded-lg text-sm font-semibold text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Join
+                </button>
               </div>
-              <button onClick={handleJoin} disabled={!meetingCode.trim()} className="px-5 py-3 rounded-lg text-sm font-semibold text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                Join
-              </button>
-            </div>
+            )}
           </div>
 
-          {generatedCode && (
+          {/* Progress indicator */}
+          {isProcessing && (
+            <div className="p-4 rounded-xl bg-card border border-border space-y-2">
+              <p className="text-sm text-muted-foreground">{phaseLabel[uploadPhase]}</p>
+              {uploadPhase === "processing" && uploadProgress.total > 0 && (
+                <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {generatedCode && uploadPhase === "done" && (
             <div className="p-4 rounded-xl bg-card border border-border shadow-lg space-y-3 fade-up">
               {uploadedFile && (
                 <div className="flex items-center gap-2 text-sm text-foreground">
@@ -201,25 +241,13 @@ export default function MeetHome() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-foreground">
-                  {isTeacher ? "Upload & present" : "Get a link you can share"}
+                  {isTeacher ? "Upload & present" : "Enter the room code"}
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
                   {isTeacher
                     ? "Upload a PDF or PPTX to start presenting with Study Buddy active"
                     : "Enter the room code shared by your teacher to join the session"}
                 </p>
-              </div>
-              <div className="grid grid-cols-3 gap-3 w-full pt-4">
-                {[
-                  { icon: Calendar, label: "Schedule" },
-                  { icon: Users, label: "Study group" },
-                  { icon: Video, label: "Present" },
-                ].map(({ icon: Icon, label }) => (
-                  <div key={label} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors cursor-default">
-                    <Icon className="w-5 h-5 text-primary" />
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

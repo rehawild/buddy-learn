@@ -1,8 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  ChevronRight, ChevronLeft, Eye, Users,
-} from "lucide-react";
+import { ChevronRight, ChevronLeft, Eye, Users } from "lucide-react";
 import { fakeParticipants } from "@/data/participants";
 import { lessons, type Question } from "@/data/lessons";
 import ParticipantTile from "@/components/ParticipantTile";
@@ -16,6 +14,7 @@ import SpeakerNotes from "@/components/SpeakerNotes";
 import SlideGridOverlay from "@/components/SlideGridOverlay";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
 import { useAuth } from "@/hooks/useAuth";
+import { useSessionSlides } from "@/hooks/useSessionSlides";
 
 export default function MeetRoom() {
   const navigate = useNavigate();
@@ -23,6 +22,10 @@ export default function MeetRoom() {
   const roomCode = searchParams.get("room");
   const { role: authRole } = useAuth();
   const isViewer = authRole !== "teacher";
+
+  // Fetch uploaded slides for this session
+  const { slides: uploadedSlides, loading: slidesLoading, presentationTitle } = useSessionSlides(roomCode);
+  const hasUploadedSlides = uploadedSlides && uploadedSlides.length > 0;
 
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
@@ -72,25 +75,33 @@ export default function MeetRoom() {
     }
     setBuddyEnabled(remoteState.buddyEnabled);
     setDifficulty(remoteState.difficulty);
-    if (remoteState.activeQuestionIdx !== null) {
+    if (!hasUploadedSlides && remoteState.activeQuestionIdx !== null) {
       const lesson = lessons[remoteState.lessonIdx];
       const section = lesson?.sections[remoteState.sectionIdx];
       const q = section?.questions[remoteState.activeQuestionIdx];
       setActiveQuestion(q || null);
       setActiveQuestionIdx(remoteState.activeQuestionIdx);
+    } else if (hasUploadedSlides) {
+      setActiveQuestion(null);
+      setActiveQuestionIdx(null);
     } else {
       setActiveQuestion(null);
       setActiveQuestionIdx(null);
     }
     setPresenting(true);
-  }, [isViewer, remoteState, freeBrowse]);
+  }, [isViewer, remoteState, freeBrowse, hasUploadedSlides]);
 
-  const lesson = lessons[lessonIdx];
+  // Demo lesson data (only when no uploaded slides)
+  const lesson = hasUploadedSlides ? null : lessons[lessonIdx];
+  const totalSlides = hasUploadedSlides ? uploadedSlides!.length : (lesson?.sections.length ?? 0);
   const displayIdx = isViewer && freeBrowse ? localSectionIdx : sectionIdx;
-  const section = lesson.sections[displayIdx];
-  const totalSlides = lesson.sections.length;
+  const section = hasUploadedSlides ? null : lesson?.sections[displayIdx] ?? null;
   const isLastSection = displayIdx >= totalSlides - 1;
-  const presenterSlide = sectionIdx; // for viewer indicator
+  const presenterSlide = sectionIdx;
+
+  const slideTitle = hasUploadedSlides
+    ? (presentationTitle || "Presentation")
+    : (lesson?.title || "Study Session");
 
   // Broadcast helper
   const broadcastState = useCallback((overrides: Partial<RoomState> = {}) => {
@@ -108,11 +119,12 @@ export default function MeetRoom() {
     return () => clearInterval(t);
   }, []);
 
-  // Buddy trigger
+  // Buddy trigger (only for demo lessons)
   useEffect(() => {
-    if (isViewer || !presenting || !buddyEnabled) return;
+    if (isViewer || !presenting || !buddyEnabled || hasUploadedSlides) return;
     clearTimeout(timerRef.current);
-    const currentSection = lesson.sections[sectionIdx];
+    const currentSection = lesson?.sections[sectionIdx];
+    if (!currentSection) return;
     timerRef.current = setTimeout(() => {
       const matching = currentSection.questions.filter((q) => q.difficulty === difficulty);
       const q = matching.length > 0 ? matching[0] : currentSection.questions[0];
@@ -124,15 +136,15 @@ export default function MeetRoom() {
       }
     }, 4000);
     return () => clearTimeout(timerRef.current);
-  }, [sectionIdx, lessonIdx, buddyEnabled, difficulty, presenting, isViewer, broadcastState, lesson.sections]);
+  }, [sectionIdx, lessonIdx, buddyEnabled, difficulty, presenting, isViewer, broadcastState, lesson?.sections, hasUploadedSlides]);
 
   const handleAnswer = useCallback((correct: boolean) => {
     setResults((prev) => ({
       correct: prev.correct + (correct ? 1 : 0),
       total: prev.total + 1,
-      concepts: [...new Set([...prev.concepts, section.title])].slice(-5),
+      concepts: [...new Set([...prev.concepts, section?.title || ""])].slice(-5),
     }));
-  }, [section.title]);
+  }, [section?.title]);
 
   const handleDismiss = useCallback(() => {
     setActiveQuestion(null);
@@ -155,7 +167,7 @@ export default function MeetRoom() {
     if (isLastSection) {
       if (!isViewer) {
         navigate("/recap", {
-          state: { lessonTitle: lesson.title, ...results, concepts: [...new Set([...results.concepts, section.title])].slice(0, 3) },
+          state: { lessonTitle: slideTitle, ...results, concepts: results.concepts.slice(0, 3) },
         });
       }
     } else {
@@ -170,6 +182,7 @@ export default function MeetRoom() {
   const handleSlideSelect = (i: number) => navigateSlide(i);
 
   const handleLessonChange = (i: number) => {
+    if (hasUploadedSlides) return;
     setLessonIdx(i);
     setSectionIdx(0);
     setLocalSectionIdx(0);
@@ -181,7 +194,7 @@ export default function MeetRoom() {
 
   const leaveCall = () => {
     if (presenting && results.total > 0) {
-      navigate("/recap", { state: { lessonTitle: lesson.title, ...results, concepts: results.concepts.slice(0, 3) } });
+      navigate("/recap", { state: { lessonTitle: slideTitle, ...results, concepts: results.concepts.slice(0, 3) } });
     } else {
       navigate("/");
     }
@@ -231,12 +244,20 @@ export default function MeetRoom() {
 
   const totalParticipants = Math.max(fakeParticipants.length, participantCount + fakeParticipants.length - 1);
 
+  if (slidesLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Loading session…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Top bar */}
       <div className="h-14 bg-meet-bar border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
         <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-foreground truncate">{presenting ? lesson.title : "Study Session"}</h2>
+          <h2 className="text-sm font-semibold text-foreground truncate">{presenting ? slideTitle : "Study Session"}</h2>
           <p className="text-xs text-muted-foreground">
             {roomCode ? `Room: ${roomCode}` : "study-session-demo"} · {elapsed}
           </p>
@@ -275,8 +296,8 @@ export default function MeetRoom() {
 
       {/* Main area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Thumbnail sidebar (presenter only) */}
-        {presenting && showThumbnails && !isViewer && (
+        {/* Thumbnail sidebar (presenter only, demo lessons only) */}
+        {presenting && showThumbnails && !isViewer && !hasUploadedSlides && (
           <div className="w-48 lg:w-56 border-r border-border bg-meet-bar flex-shrink-0 hidden md:block">
             <div className="h-full flex flex-col">
               <div className="flex gap-1 p-2 border-b border-border">
@@ -293,11 +314,40 @@ export default function MeetRoom() {
                 ))}
               </div>
               <SlideThumbnail
-                sections={lesson.sections}
+                sections={lesson!.sections}
                 currentIndex={displayIdx}
                 onSelect={handleSlideSelect}
-                lessonIcon={lesson.icon}
+                lessonIcon={lesson!.icon}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Uploaded slides thumbnail sidebar */}
+        {presenting && showThumbnails && !isViewer && hasUploadedSlides && (
+          <div className="w-48 lg:w-56 border-r border-border bg-meet-bar flex-shrink-0 hidden md:block overflow-y-auto">
+            <div className="p-2 space-y-2">
+              {uploadedSlides!.map((slide, i) => (
+                <button
+                  key={slide.id}
+                  onClick={() => handleSlideSelect(i)}
+                  className={`w-full rounded-lg overflow-hidden border-2 transition-colors ${
+                    i === displayIdx ? "border-primary" : "border-transparent hover:border-border"
+                  }`}
+                >
+                  <div className="aspect-video bg-meet-surface relative">
+                    <img
+                      src={slide.imagePath}
+                      alt={`Slide ${slide.slideNumber}`}
+                      className="w-full h-full object-contain"
+                      loading="lazy"
+                    />
+                    <span className="absolute bottom-1 right-1 text-[10px] font-mono bg-background/80 text-muted-foreground px-1 rounded">
+                      {slide.slideNumber}
+                    </span>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -348,15 +398,28 @@ export default function MeetRoom() {
               <div className="flex-1 p-2 md:p-4 overflow-hidden">
                 {presenting ? (
                   <div className="h-full relative rounded-xl overflow-hidden shadow-2xl border border-border">
-                    <SlideRenderer
-                      section={section}
-                      lessonTitle={lesson.title}
-                      lessonIcon={section.layout === "title" ? lesson.icon : undefined}
-                      slideNumber={displayIdx + 1}
-                      totalSlides={totalSlides}
-                      theme={lesson.theme || "default"}
-                      slideKey={`${lessonIdx}-${displayIdx}`}
-                    />
+                    {hasUploadedSlides ? (
+                      /* Uploaded slide image */
+                      <div className="w-full h-full flex items-center justify-center bg-background">
+                        <img
+                          key={displayIdx}
+                          src={uploadedSlides![displayIdx]?.imagePath}
+                          alt={`Slide ${displayIdx + 1}`}
+                          className="max-w-full max-h-full object-contain slide-enter"
+                        />
+                      </div>
+                    ) : (
+                      /* Demo lesson slide */
+                      <SlideRenderer
+                        section={section!}
+                        lessonTitle={lesson!.title}
+                        lessonIcon={section!.layout === "title" ? lesson!.icon : undefined}
+                        slideNumber={displayIdx + 1}
+                        totalSlides={totalSlides}
+                        theme={lesson!.theme || "default"}
+                        slideKey={`${lessonIdx}-${displayIdx}`}
+                      />
+                    )}
 
                     {/* Slide nav */}
                     {(!isViewer || freeBrowse) && (
@@ -371,14 +434,16 @@ export default function MeetRoom() {
                       </div>
                     )}
 
-                    <BuddyOverlay
-                      question={activeQuestion}
-                      difficulty={difficulty}
-                      enabled={buddyEnabled}
-                      onAnswer={handleAnswer}
-                      onDismiss={handleDismiss}
-                      readOnly={isViewer}
-                    />
+                    {!hasUploadedSlides && (
+                      <BuddyOverlay
+                        question={activeQuestion}
+                        difficulty={difficulty}
+                        enabled={buddyEnabled}
+                        onAnswer={handleAnswer}
+                        onDismiss={handleDismiss}
+                        readOnly={isViewer}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div className="h-full grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
@@ -389,7 +454,7 @@ export default function MeetRoom() {
                 )}
               </div>
 
-              {presenting && !isViewer && <SpeakerNotes notes={section.speakerNotes} />}
+              {presenting && !isViewer && !hasUploadedSlides && section && <SpeakerNotes notes={section.speakerNotes} />}
             </div>
 
             {sidePanel && (
@@ -432,8 +497,8 @@ export default function MeetRoom() {
         onToggleGrid={() => setGridMode((p) => !p)}
       />
 
-      {/* Slide grid overlay */}
-      {gridMode && (
+      {/* Slide grid overlay (demo lessons only) */}
+      {gridMode && !hasUploadedSlides && lesson && (
         <SlideGridOverlay
           sections={lesson.sections}
           currentIndex={displayIdx}

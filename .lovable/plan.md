@@ -20,10 +20,12 @@
 - **Phase 4: Presentation Upload** — Teacher upload PDF/PPTX on MeetHome, create session in Supabase
 - **Phase 5: Role-Differentiated Meeting** — Auth-derived roles (teacher=presenter, student=viewer), role-based MeetHome/Lobby/Room
 - **Phase 6: Real Camera & Mic** — getUserMedia in lobby with live video preview and toggle controls
+- **Teacher Join Restriction** — Teachers can only present their own sessions (UI + server-side enforcement in lobby)
+- **Client-side PDF/PPTX Parsing** — pdfjs-dist for PDF page rendering, JSZip for PPTX slide extraction, upload slide images to Supabase
+- **Uploaded Slides in MeetRoom** — Fetch presentation_slides from Supabase, render as images with thumbnail sidebar
 
 ### Remaining (nice-to-haves)
 - Phase 3: Dashboard improvements (real Supabase queries, session picker, presentations list)
-- Edge function for PDF processing (extract pages/slide count)
 - Save engagement data on session end
 - Image/image-text slide layout
 - Presenter laser pointer cursor broadcast
