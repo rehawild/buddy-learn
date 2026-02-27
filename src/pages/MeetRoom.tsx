@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Eye, Users } from "lucide-react";
 import { useMediaStream } from "@/hooks/useMediaStream";
-import { fakeParticipants } from "@/data/participants";
 import { lessons, type Question } from "@/data/lessons";
 import ParticipantTile from "@/components/ParticipantTile";
 import MeetSidebar from "@/components/MeetSidebar";
