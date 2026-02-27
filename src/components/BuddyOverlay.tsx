@@ -11,7 +11,7 @@ interface BuddyOverlayProps {
   readOnly?: boolean;
 }
 
-export default function BuddyOverlay({ question, difficulty, enabled, onAnswer, onDismiss }: BuddyOverlayProps) {
+export default function BuddyOverlay({ question, difficulty, enabled, onAnswer, onDismiss, readOnly = false }: BuddyOverlayProps) {
   const [phase, setPhase] = useState<"idle" | "question" | "feedback">("idle");
   const [userAnswer, setUserAnswer] = useState("");
   const [isCorrect, setIsCorrect] = useState(false);
