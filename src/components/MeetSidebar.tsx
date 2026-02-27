@@ -18,7 +18,7 @@ interface MeetSidebarProps {
   realtimeParticipants?: RoomParticipant[];
 }
 
-export default function MeetSidebar({ panel, onClose, roomCode, userName = "You" }: MeetSidebarProps) {
+export default function MeetSidebar({ panel, onClose, roomCode, userName = "You", realtimeParticipants = [] }: MeetSidebarProps) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>(fakeChatMessages);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
