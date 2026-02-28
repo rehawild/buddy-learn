@@ -79,9 +79,9 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       }
     };
 
-    // Handle renegotiation (fires when tracks are added after connection)
+    // Handle renegotiation — only the initiating side (lower ID) sends offers to prevent glare
     pc.onnegotiationneeded = () => {
-      if (pc.signalingState === "stable") {
+      if (pc.signalingState === "stable" && localPeerIdRef.current < remotePeerId) {
         initiateOffer(pc, remotePeerId);
       }
     };
@@ -124,6 +124,16 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
         pc = createPC(from);
       }
 
+      // Ensure local tracks are on the PC before answering
+      if (localStreamRef.current) {
+        const senders = pc.getSenders();
+        for (const track of localStreamRef.current.getTracks()) {
+          if (!senders.some((s) => s.track?.id === track.id)) {
+            pc.addTrack(track, localStreamRef.current);
+          }
+        }
+      }
+
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -155,22 +165,27 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       }
     };
 
-    // Handle peer_ready: a late-joiner announces its stream is available
+    // Handle peer_ready: a peer announces its stream is available
     const handlePeerReady = ({ payload }: { payload: any }) => {
       const { from } = payload;
       if (from === localPeerId) return;
 
-      // If we should initiate (our ID is smaller) and don't have a connection, start one
-      if (localPeerId < from && !pcsRef.current.has(from)) {
-        const pc = createPC(from);
-        initiateOffer(pc, from);
-      }
-      // If the other side should initiate but already has a connection, trigger renegotiation
-      if (localPeerId > from) {
-        const pc = pcsRef.current.get(from);
-        if (pc && pc.signalingState === "stable" && localStreamRef.current) {
-          // Already connected — the onnegotiationneeded handler takes care of it
-        } else if (!pc) {
+      const existingPC = pcsRef.current.get(from);
+
+      if (localPeerId < from) {
+        // We are the initiating side (lower ID)
+        if (!existingPC) {
+          if (localStreamRef.current) {
+            const pc = createPC(from);
+            initiateOffer(pc, from);
+          }
+        } else if (existingPC.signalingState === "stable") {
+          // Peer got their stream — renegotiate to exchange updated media
+          initiateOffer(existingPC, from);
+        }
+      } else {
+        // We are the responding side (higher ID)
+        if (!existingPC) {
           // No connection yet and the other side should initiate — broadcast our own ready
           channelRef.current?.send({
             type: "broadcast",
@@ -185,6 +200,16 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     channel.on("broadcast", { event: "webrtc_answer" }, handleAnswer);
     channel.on("broadcast", { event: "webrtc_ice" }, handleICE);
     channel.on("broadcast", { event: "peer_ready" }, handlePeerReady);
+
+    // Broadcast readiness now that listeners are registered — ensures peers
+    // that sent offers before we were listening will re-initiate
+    if (localStreamRef.current) {
+      channel.send({
+        type: "broadcast",
+        event: "peer_ready",
+        payload: { from: localPeerId },
+      });
+    }
 
     return () => {
       // Supabase JS v2 doesn't have .off(); cleanup happens on channel.unsubscribe()
@@ -209,12 +234,12 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     // Initiate connection to new peers (only if our ID is smaller — avoids duplicate offers)
     for (const remotePeerId of remotePeerIds) {
       if (pcsRef.current.has(remotePeerId)) continue;
-      if (localPeerId < remotePeerId) {
+      if (localPeerId < remotePeerId && localStreamRef.current) {
         const pc = createPC(remotePeerId);
         initiateOffer(pc, remotePeerId);
       }
     }
-  }, [participants, enabled, channel, localPeerId, createPC, closePC, initiateOffer]);
+  }, [participants, enabled, channel, localPeerId, localStream, createPC, closePC, initiateOffer]);
 
   // When local stream changes, replace tracks on all existing connections and broadcast readiness
   useEffect(() => {
@@ -233,14 +258,14 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     }
 
     // Announce stream readiness to trigger connections from peers that missed us
-    if (channelRef.current) {
-      channelRef.current.send({
+    if (channel) {
+      channel.send({
         type: "broadcast",
         event: "peer_ready",
         payload: { from: localPeerId },
       });
     }
-  }, [localStream, localPeerId]);
+  }, [localStream, localPeerId, channel]);
 
   // Cleanup all connections on unmount
   useEffect(() => {
