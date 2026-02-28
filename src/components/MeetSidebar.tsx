@@ -1,4 +1,4 @@
-import { X, Send, Users, MessageSquare } from "lucide-react";
+import { X, Send, Users, MessageSquare, Hand } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { RoomParticipant } from "@/hooks/useRealtimeRoom";
@@ -15,9 +15,11 @@ interface MeetSidebarProps {
   roomCode?: string | null;
   userName?: string;
   realtimeParticipants?: RoomParticipant[];
+  isTeacher?: boolean;
+  onLowerHand?: (targetId: string) => void;
 }
 
-export default function MeetSidebar({ panel, onClose, roomCode, userName = "You", realtimeParticipants = [] }: MeetSidebarProps) {
+export default function MeetSidebar({ panel, onClose, roomCode, userName = "You", realtimeParticipants = [], isTeacher = false, onLowerHand }: MeetSidebarProps) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -82,12 +84,25 @@ export default function MeetSidebar({ panel, onClose, roomCode, userName = "You"
       {panel === "people" ? (
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {realtimeParticipants.length > 0
-            ? realtimeParticipants.map((p) => (
+            ? [...realtimeParticipants]
+                .sort((a, b) => (b.handRaised ? 1 : 0) - (a.handRaised ? 1 : 0))
+                .map((p) => (
                 <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/50 transition-colors">
                   <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">
                     {p.name.slice(0, 2).toUpperCase()}
                   </div>
                   <span className="text-sm text-foreground flex-1 truncate">{p.name}</span>
+                  {p.handRaised && (
+                    <Hand className="w-4 h-4 text-buddy-warm animate-bounce flex-shrink-0" />
+                  )}
+                  {p.handRaised && isTeacher && onLowerHand && (
+                    <button
+                      onClick={() => onLowerHand(p.id)}
+                      className="px-2 py-0.5 rounded text-[10px] font-semibold bg-buddy-warm/15 text-buddy-warm hover:bg-buddy-warm/25 transition-colors flex-shrink-0"
+                    >
+                      Lower
+                    </button>
+                  )}
                   <span className="text-xs text-muted-foreground capitalize">{p.role}</span>
                 </div>
               ))

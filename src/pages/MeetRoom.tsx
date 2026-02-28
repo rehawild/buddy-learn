@@ -15,6 +15,7 @@ import SpeakerNotes from "@/components/SpeakerNotes";
 import SlideGridOverlay from "@/components/SlideGridOverlay";
 import TeacherQuestionPanel from "@/components/TeacherQuestionPanel";
 import TranscriptApprovalQueue from "@/components/TranscriptApprovalQueue";
+import SlideQuestionSuggestions from "@/components/SlideQuestionSuggestions";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { useLiveTranscript } from "@/hooks/useLiveTranscript";
@@ -25,6 +26,7 @@ import { useStudentAgent } from "@/hooks/useStudentAgent";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useBuddyMood } from "@/hooks/useBuddyMood";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 function stringToColor(str: string): string {
   let hash = 0;
@@ -301,6 +303,54 @@ export default function MeetRoom() {
       return () => clearTimeout(timer);
     }
   }, [isViewer, realtimeParticipants, sessionEnded, engagementTracker, navigate, buildRecapState]);
+
+  // ── Toast notification when a student raises their hand (teacher only) ──
+  const prevParticipantsRef = useRef<typeof realtimeParticipants>([]);
+  useEffect(() => {
+    if (isViewer) {
+      prevParticipantsRef.current = realtimeParticipants;
+      return;
+    }
+    const prev = prevParticipantsRef.current;
+    for (const p of realtimeParticipants) {
+      if (p.id === localPeerId || !p.handRaised) continue;
+      const prevP = prev.find((pp) => pp.id === p.id);
+      if (!prevP || !prevP.handRaised) {
+        toast(`✋ ${p.name} raised their hand`, { duration: 4000 });
+      }
+    }
+    prevParticipantsRef.current = realtimeParticipants;
+  }, [realtimeParticipants, isViewer, localPeerId]);
+
+  // ── Listen for lower_hand broadcast (students auto-lower) ──
+  useEffect(() => {
+    if (!channel || !isViewer) return;
+    const handler = ({ payload }: { payload: { targetId: string } }) => {
+      if (payload.targetId === localPeerId) {
+        setHandRaised(false);
+        updatePresence({ handRaised: false });
+      }
+    };
+    channel.on("broadcast", { event: "lower_hand" }, handler);
+    return () => {
+      // Cleanup happens on channel.unsubscribe()
+    };
+  }, [channel, isViewer, localPeerId, updatePresence]);
+
+  // ── Teacher: lower a student's hand via broadcast ──
+  const handleLowerHand = useCallback((targetId: string) => {
+    if (isViewer || !channel) return;
+    channel.send({
+      type: "broadcast",
+      event: "lower_hand",
+      payload: { targetId },
+    });
+  }, [isViewer, channel]);
+
+  // Raised hand count (exclude self)
+  const raisedHandCount = realtimeParticipants.filter(
+    (p) => p.handRaised && p.id !== localPeerId
+  ).length;
 
   // Determine which question to show in BuddyOverlay
   // For uploaded slides: students get AI-dispatched questions, teachers see nothing (they dispatch)
@@ -778,13 +828,21 @@ export default function MeetRoom() {
                       />
                     )}
 
-                    {/* Transcript question approval queue (teacher only) */}
+                    {/* Slide & transcript question overlays (teacher only) */}
                     {!isViewer && hasUploadedSlides && (
-                      <TranscriptApprovalQueue
-                        pendingQuestions={pendingTranscriptQuestions}
-                        onApprove={approveTranscriptQuestion}
-                        onDismiss={dismissTranscriptQuestion}
-                      />
+                      <>
+                        <SlideQuestionSuggestions
+                          questionBank={questionBank}
+                          currentSlideIndex={sectionIdx}
+                          onDispatchSingle={dispatchSingleQuestion}
+                          isQuestionDispatched={isQuestionDispatched}
+                        />
+                        <TranscriptApprovalQueue
+                          pendingQuestions={pendingTranscriptQuestions}
+                          onApprove={approveTranscriptQuestion}
+                          onDismiss={dismissTranscriptQuestion}
+                        />
+                      </>
                     )}
 
                     {/* Slide nav */}
@@ -824,12 +882,21 @@ export default function MeetRoom() {
 
                     {/* Live transcript subtitle bar (toggle-controlled) */}
                     {showTranscript && transcriptLines.length > 0 && (
-                      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 max-w-[80%] z-20">
-                        <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-center">
+                      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-20">
+                        <div className="flex flex-col gap-1.5 items-center">
                           {transcriptLines.slice(-2).map((line, i) => (
-                            <p key={line.peerId + i} className="text-sm text-white/90">
-                              <span className="font-semibold text-primary-foreground/80">{line.speaker}: </span>
-                              {line.text}
+                            <p
+                              key={line.peerId + i}
+                              className="text-base leading-relaxed text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]"
+                            >
+                              <span
+                                className="inline-block px-1.5 py-0.5 mr-1.5 rounded bg-white/20 text-xs font-semibold text-white/90 align-middle"
+                              >
+                                {line.speaker}
+                              </span>
+                              <span className="bg-black/60 px-2 py-0.5 rounded">
+                                {line.text}
+                              </span>
                             </p>
                           ))}
                         </div>
@@ -890,6 +957,8 @@ export default function MeetRoom() {
                 roomCode={roomCode}
                 userName={userName}
                 realtimeParticipants={realtimeParticipants}
+                isTeacher={!isViewer}
+                onLowerHand={handleLowerHand}
               />
             ) : null}
           </div>
@@ -927,6 +996,7 @@ export default function MeetRoom() {
         gridMode={gridMode}
         onToggleGrid={() => setGridMode((p) => !p)}
         onReaction={engagementTracker.recordReaction}
+        raisedHandCount={raisedHandCount}
       />
 
       {/* Slide grid overlay (demo lessons only) */}

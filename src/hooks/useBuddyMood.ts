@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 
-export type BuddyMood = "happy" | "thinking" | "sad" | "wave";
+export type BuddyMood = "happy" | "thinking" | "sad" | "wave" | "idle";
 
 const MOOD_SRCS: Record<BuddyMood, string> = {
   happy: "/happy.gif",
   thinking: "/thinking.gif",
   sad: "/sad.gif",
   wave: "/wave.gif",
+  idle: "/idle.gif",
 };
 
 const DEBOUNCE_MS = 3_000;
@@ -100,10 +101,7 @@ export function useBuddyMood({
         } else if (attention < 40) {
           newMood = "sad";
         } else {
-          // Neutral zone: hold current mood if sensible, otherwise default happy
-          const current = moodRef.current;
-          newMood =
-            current === "happy" || current === "sad" ? current : "happy";
+          newMood = "idle";
         }
       }
 

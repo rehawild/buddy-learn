@@ -1,8 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Video, Keyboard, Upload, FileText, User, Copy, Check, LayoutDashboard, LogOut } from "lucide-react";
-// Replaced mascot.png with catch, the image filename has been updated
-import mascotImg from "@/assets/catchy.png";
 import { generateRoomCode } from "@/lib/room";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -232,11 +230,8 @@ export default function MeetHome() {
 
         <div className="relative w-full max-w-lg">
           <div className="aspect-[4/3] rounded-2xl bg-card border border-border overflow-hidden shadow-2xl">
-            <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-6">
-              <div className="w-20 h-20 rounded-2xl overflow-hidden buddy-glow">
-                {/* Changed mascotImg to catch, matching the image filename update */}
-                <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
-              </div>
+            <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-4">
+              <img src="/hero-anim.gif" alt="Catchy" className="w-48 h-48 object-contain" />
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-foreground">
                   {isTeacher ? "Upload & present" : "Enter the room code"}

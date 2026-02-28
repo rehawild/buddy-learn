@@ -33,6 +33,7 @@ interface MeetBottomBarProps {
   onToggleGrid?: () => void;
   gridMode?: boolean;
   onReaction?: (emoji: string) => void;
+  raisedHandCount?: number;
 }
 
 const diffColors = { easy: "text-correct", medium: "text-buddy-warm", hard: "text-incorrect" } as const;
@@ -51,6 +52,7 @@ export default function MeetBottomBar({
   roomCode, isViewer, onLeave,
   onToggleGrid, gridMode,
   onReaction,
+  raisedHandCount = 0,
 }: MeetBottomBarProps) {
   const [emojiOpen, setEmojiOpen] = useState(false);
 
@@ -104,8 +106,13 @@ export default function MeetBottomBar({
         <button onClick={() => onToggleSidePanel("chat")} className={`p-2.5 md:p-3 rounded-full transition-colors ${sidePanel === "chat" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
           <MessageSquare className="w-4 h-4 md:w-5 md:h-5" />
         </button>
-        <button onClick={() => onToggleSidePanel("people")} className={`p-2.5 md:p-3 rounded-full transition-colors ${sidePanel === "people" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+        <button onClick={() => onToggleSidePanel("people")} className={`relative p-2.5 md:p-3 rounded-full transition-colors ${sidePanel === "people" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
           <Users className="w-4 h-4 md:w-5 md:h-5" />
+          {raisedHandCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-buddy-warm text-[10px] font-bold text-white px-1">
+              {raisedHandCount}
+            </span>
+          )}
         </button>
 
         {!isViewer && hasUploadedSlides && (
