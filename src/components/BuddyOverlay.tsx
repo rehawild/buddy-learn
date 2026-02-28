@@ -2,23 +2,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Question } from "@/data/lessons";
+import mascotImg from "@/assets/catchy.png";
 
-const MASCOT_VIDEO = "/mascot.mp4";
-
-// Float waypoints along screen edges (percentage-based)
 const WAYPOINTS = [
-  { x: 85, y: 75 }, // bottom-right (start)
-  { x: 80, y: 25 }, // top-right
-  { x: 15, y: 20 }, // top-left
-  { x: 15, y: 65 }, // bottom-left
-  { x: 45, y: 72 }, // bottom-center
-  { x: 85, y: 75 }, // back to start
+  { x: 85, y: 75 },
+  { x: 80, y: 25 },
+  { x: 15, y: 20 },
+  { x: 15, y: 65 },
+  { x: 45, y: 72 },
+  { x: 85, y: 75 },
 ];
 
-// Safe position when question dialog is open (keeps the ~320px dialog within bounds)
 const SAFE_POS = { x: 75, y: 55 };
-
-const FLOAT_STEP_MS = 14000; // time per waypoint (slow, gentle drift)
+const FLOAT_STEP_MS = 14000;
 
 interface BuddyOverlayProps {
   question: Question | null;
@@ -44,7 +40,6 @@ export default function BuddyOverlay({
   const [isCorrect, setIsCorrect] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Floating position
   const [pos, setPos] = useState(WAYPOINTS[0]);
   const waypointIdxRef = useRef(0);
   const floatPausedRef = useRef(false);
@@ -52,26 +47,19 @@ export default function BuddyOverlay({
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
 
-  // Float around when idle (not showing question dialog)
   useEffect(() => {
     if (!enabled) return;
-
     const advance = () => {
       if (floatPausedRef.current) return;
       waypointIdxRef.current = (waypointIdxRef.current + 1) % WAYPOINTS.length;
       setPos(WAYPOINTS[waypointIdxRef.current]);
     };
-
     const timer = setInterval(advance, FLOAT_STEP_MS);
     return () => clearInterval(timer);
   }, [enabled]);
 
-  // Pause floating when dialog is open
-  useEffect(() => {
-    floatPausedRef.current = isOpen;
-  }, [isOpen]);
+  useEffect(() => { floatPausedRef.current = isOpen; }, [isOpen]);
 
-  // When a new question arrives, open dialog, enter question phase, and move to safe zone
   useEffect(() => {
     if (question && enabled) {
       setPhase("question");
@@ -79,9 +67,7 @@ export default function BuddyOverlay({
       setIsOpen(true);
       setPos(SAFE_POS);
     } else if (!question) {
-      if (phase !== "feedback") {
-        setPhase("idle");
-      }
+      if (phase !== "feedback") setPhase("idle");
     }
   }, [question, enabled]);
 
@@ -92,8 +78,7 @@ export default function BuddyOverlay({
   const handleSubmit = useCallback(
     (answer: string) => {
       if (!question) return;
-      const correct =
-        answer.toLowerCase().trim() === question.answer.toLowerCase().trim();
+      const correct = answer.toLowerCase().trim() === question.answer.toLowerCase().trim();
       setIsCorrect(correct);
       setPhase("feedback");
       onAnswer(correct);
@@ -113,7 +98,6 @@ export default function BuddyOverlay({
     clearTimeout(dismissTimerRef.current);
     setIsOpen(false);
     setPhase("idle");
-    // Resume floating from current waypoint
     setPos(WAYPOINTS[waypointIdxRef.current]);
     onDismiss();
   }, [onDismiss]);
@@ -142,23 +126,12 @@ export default function BuddyOverlay({
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-secondary/50">
             <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-buddy flex-shrink-0">
-              <video
-                src={MASCOT_VIDEO}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
+              <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">Study Buddy</p>
+              <p className="text-sm font-semibold text-foreground">Catchy</p>
               <p className="text-xs text-muted-foreground">
-                {phase === "question"
-                  ? "Quick check!"
-                  : isCorrect
-                    ? "Nice work!"
-                    : "Keep trying!"}
+                {phase === "question" ? "Quick check!" : isCorrect ? "Nice work!" : "Keep trying!"}
               </p>
             </div>
             {questionSource && (
@@ -181,22 +154,18 @@ export default function BuddyOverlay({
           {/* Question content */}
           <ScrollArea className="max-h-56">
             <div className="p-3 space-y-2">
-              {/* Concept chip */}
               {question.highlight && (
                 <div className="text-xs text-muted-foreground px-1">
-                  Key concept:{" "}
-                  <span className="text-buddy font-semibold">"{question.highlight}"</span>
+                  Key concept: <span className="text-buddy font-semibold">"{question.highlight}"</span>
                 </div>
               )}
 
-              {/* Question text */}
               <div className="flex justify-start">
                 <div className="max-w-[85%] px-3 py-2 rounded-lg bg-secondary text-sm text-foreground rounded-bl-none">
                   {question.question}
                 </div>
               </div>
 
-              {/* Answer buttons */}
               {phase === "question" && (
                 <div className="fade-up">
                   {question.type === "choice" && question.options ? (
@@ -214,10 +183,7 @@ export default function BuddyOverlay({
                     </div>
                   ) : (
                     <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleSubmit(userAnswer);
-                      }}
+                      onSubmit={(e) => { e.preventDefault(); handleSubmit(userAnswer); }}
                       className="flex gap-2 px-1"
                     >
                       <input
@@ -229,10 +195,7 @@ export default function BuddyOverlay({
                         className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-secondary text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-buddy"
                         autoFocus
                       />
-                      <button
-                        type="submit"
-                        className="px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
-                      >
+                      <button type="submit" className="px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">
                         Go
                       </button>
                     </form>
@@ -240,16 +203,11 @@ export default function BuddyOverlay({
                 </div>
               )}
 
-              {/* Feedback bubble */}
               {phase === "feedback" && (
                 <div className="flex justify-start fade-up">
-                  <div
-                    className={`max-w-[85%] px-3 py-2 rounded-lg rounded-bl-none text-sm ${
-                      isCorrect
-                        ? "bg-green-500/15 text-green-300"
-                        : "bg-red-500/15 text-red-300"
-                    }`}
-                  >
+                  <div className={`max-w-[85%] px-3 py-2 rounded-lg rounded-bl-none text-sm ${
+                    isCorrect ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"
+                  }`}>
                     <div className="flex items-center gap-1 font-semibold mb-0.5">
                       <span>{isCorrect ? "✓" : "✗"}</span>
                       {isCorrect ? "Correct!" : "Not quite!"}
@@ -272,14 +230,7 @@ export default function BuddyOverlay({
         onClick={() => setIsOpen((prev) => !prev)}
         className="w-16 h-16 rounded-full overflow-hidden border-2 border-buddy buddy-float cursor-pointer hover:scale-110 transition-transform flex-shrink-0 shadow-lg pointer-events-auto"
       >
-        <video
-          src={MASCOT_VIDEO}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover"
-        />
+        <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
       </button>
     </div>
   );

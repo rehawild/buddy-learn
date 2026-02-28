@@ -239,20 +239,23 @@ export default function MeetRoom() {
   }, [engagementTracker, slideTitle, results]);
 
   // ── Student: listen for session_ended broadcast ──
-  const sessionEndedHandledRef = useRef(false);
   useEffect(() => {
     if (!isViewer || !channel) return;
 
-    channel.on("broadcast", { event: "session_ended" }, () => {
-      if (sessionEndedHandledRef.current) return;
-      sessionEndedHandledRef.current = true;
+    const handleSessionEnded = () => {
+      if (sessionEnded) return;
       setSessionEnded(true);
       engagementTracker.flush();
       setTimeout(() => {
         navigate("/recap", { state: buildRecapState() });
       }, 2000);
-    });
-  }, [isViewer, channel, engagementTracker, navigate, buildRecapState]);
+    };
+
+    channel.on("broadcast", { event: "session_ended" }, handleSessionEnded);
+    return () => {
+      // Supabase JS v2 doesn't have .off(); cleanup happens on channel.unsubscribe()
+    };
+  }, [isViewer, channel, sessionEnded, engagementTracker, navigate, buildRecapState]);
 
   // ── Presence fallback: detect presenter leaving ──
   useEffect(() => {

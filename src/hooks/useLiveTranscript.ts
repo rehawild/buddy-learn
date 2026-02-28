@@ -142,7 +142,7 @@ export function useLiveTranscript({
 
     channel.on("broadcast", { event: "live_transcript" }, handler);
     return () => {
-      channel.off("broadcast", { event: "live_transcript" }, handler);
+      // Supabase JS v2 doesn't have .off(); cleanup happens on unsubscribe
     };
   }, [channel, isConnected, localPeerId]);
 

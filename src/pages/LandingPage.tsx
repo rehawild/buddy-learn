@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Upload, Users, Sparkles, MonitorPlay, MessageCircle, Brain, ChevronDown, BarChart3, Hand, Zap, BookOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import buddyImg from "@/assets/buddy-owl.png";
+import mascotImg from "@/assets/catchy.png";
 
 function useInView() {
   const [visible, setVisible] = useState<Set<string>>(new Set());
@@ -43,10 +43,10 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg overflow-hidden">
-              <img src={buddyImg} alt="Study Buddy" className="w-full h-full object-cover" />
+              <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
             </div>
             <span className="text-lg font-bold tracking-tight">
-              Study <span className="text-primary">Buddy</span>
+              <span className="text-primary">Catchy</span>
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -70,7 +70,7 @@ export default function LandingPage() {
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-3xl mx-auto text-center space-y-8">
           <div className="w-28 h-28 mx-auto rounded-2xl overflow-hidden buddy-glow">
-            <img src={buddyImg} alt="Study Buddy owl mascot" className="w-full h-full object-cover" />
+            <img src={mascotImg} alt="Catchy mascot" className="w-full h-full object-cover" />
           </div>
 
           <div className="space-y-4">
@@ -80,7 +80,7 @@ export default function LandingPage() {
               classrooms <span className="text-primary">engaged</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
-              Upload your slides, share a room code, and let our AI buddy keep students focused with real-time micro-interactions — no extra prep required.
+              Upload your slides, share a room code, and let Catchy keep students focused with real-time micro-interactions — no extra prep required.
             </p>
           </div>
 
@@ -128,7 +128,7 @@ export default function LandingPage() {
               {
                 icon: Brain,
                 title: "AI Micro-Interactions",
-                desc: "Our Buddy owl pops up with contextual quiz questions during lessons — reinforcing key concepts as they're taught.",
+                desc: "Catchy pops up with contextual quiz questions during lessons — reinforcing key concepts as they're taught.",
               },
             ].map(({ icon: Icon, title, desc }) => (
               <div
@@ -173,8 +173,8 @@ export default function LandingPage() {
               {
                 step: "03",
                 icon: Sparkles,
-                title: "Buddy does the rest",
-                desc: "Our AI buddy surfaces quick questions at the right moments, keeping attention high.",
+                title: "Catchy does the rest",
+                desc: "Our AI companion surfaces quick questions at the right moments, keeping attention high.",
               },
             ].map(({ step, icon: Icon, title, desc }) => (
               <div key={step} className="text-center space-y-4">
@@ -214,7 +214,7 @@ export default function LandingPage() {
                   "Upload presentations and present live",
                   "View real-time engagement dashboard",
                   "Track student progress and accuracy",
-                  "Control slide pacing and buddy interactions",
+                  "Control slide pacing and Catchy interactions",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm text-secondary-foreground">
                     <span className="mt-1 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
@@ -273,11 +273,11 @@ export default function LandingPage() {
       <footer className="py-8 px-6 border-t border-border">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <span className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Study Buddy
+            © {new Date().getFullYear()} Catchy
           </span>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded overflow-hidden">
-              <img src={buddyImg} alt="" className="w-full h-full object-cover" />
+              <img src={mascotImg} alt="" className="w-full h-full object-cover" />
             </div>
             <span className="text-xs text-muted-foreground">
               Built with <span className="text-primary">♥</span>

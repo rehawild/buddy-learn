@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Mic, MicOff, Video, VideoOff, Monitor, Copy, Check, Users, AlertTriangle } from "lucide-react";
-import buddyImg from "@/assets/buddy-owl.png";
+import mascotImg from "@/assets/catchy.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaStream } from "@/hooks/useMediaStream";
 import { supabase } from "@/integrations/supabase/client";
@@ -192,9 +192,9 @@ export default function MeetLobby() {
 
           <div className="flex items-center gap-2 justify-center lg:justify-start">
             <div className="w-8 h-8 rounded-full overflow-hidden border border-primary">
-              <img src={buddyImg} alt="Buddy" className="w-full h-full object-cover" />
+              <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
             </div>
-            <span className="text-xs text-muted-foreground">Study Buddy will be active</span>
+            <span className="text-xs text-muted-foreground">Catchy will be active</span>
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Video, Keyboard, Upload, FileText, User, Copy, Check, LayoutDashboard, LogOut } from "lucide-react";
-import buddyImg from "@/assets/buddy-owl.png";
+// Replaced mascot.png with catch, the image filename has been updated
+import mascotImg from "@/assets/catchy.png";
 import { generateRoomCode } from "@/lib/room";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,7 @@ export default function MeetHome() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isTeacher = role === "teacher";
 
+  // Keep existing handlers
   const handleNewMeeting = () => {
     fileInputRef.current?.click();
   };
@@ -36,7 +38,6 @@ export default function MeetHome() {
     }
 
     try {
-      // Phase 1: Upload raw file
       setUploadPhase("uploading");
       const ext = file.name.split(".").pop();
       const path = `${user.id}/${Date.now()}.${ext}`;
@@ -55,18 +56,15 @@ export default function MeetHome() {
       const presentationId = data.id;
       setUploadedFile({ name: title, id: presentationId });
 
-      // Phase 2: Parse file client-side
       setUploadPhase("parsing");
       const slides = await parsePresentation(file);
 
-      // Phase 3: Upload slide images
       setUploadPhase("processing");
       setUploadProgress({ current: 0, total: slides.length });
       await uploadSlides(presentationId, user.id, slides, (current, total) => {
         setUploadProgress({ current, total });
       });
 
-      // Done
       setUploadPhase("done");
       const code = generateRoomCode();
       setGeneratedCode(code);
@@ -75,7 +73,6 @@ export default function MeetHome() {
       setUploadPhase("idle");
     }
 
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -118,7 +115,8 @@ export default function MeetHome() {
       <header className="h-16 flex items-center justify-between px-6 border-b border-border">
         <div className="flex items-center gap-3">
           <Video className="w-6 h-6 text-primary" />
-          <span className="text-lg font-semibold text-foreground">Study Meet</span>
+          {/* Changed "Study Meet" to "Catchy" */}
+          <span className="text-lg font-semibold text-foreground">Catchy</span>
         </div>
         <div className="flex items-center gap-2">
           {isTeacher && (
@@ -150,9 +148,9 @@ export default function MeetHome() {
           <div className="space-y-3">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
               {isTeacher ? (
-                <>Present & engage.<br /><span className="text-primary">With Study Buddy.</span></>
+                <>Present & engage.<br /><span className="text-primary">With Catchy.</span></>
               ) : (
-                <>Join & learn.<br /><span className="text-primary">With Study Buddy.</span></>
+                <>Join & learn.<br /><span className="text-primary">With Catchy.</span></>
               )}
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
@@ -196,7 +194,6 @@ export default function MeetHome() {
             )}
           </div>
 
-          {/* Progress indicator */}
           {isProcessing && (
             <div className="p-4 rounded-xl bg-card border border-border space-y-2">
               <p className="text-sm text-muted-foreground">{phaseLabel[uploadPhase]}</p>
@@ -237,7 +234,8 @@ export default function MeetHome() {
           <div className="aspect-[4/3] rounded-2xl bg-card border border-border overflow-hidden shadow-2xl">
             <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-6">
               <div className="w-20 h-20 rounded-2xl overflow-hidden buddy-glow">
-                <img src={buddyImg} alt="Study Buddy" className="w-full h-full object-cover" />
+                {/* Changed mascotImg to catch, matching the image filename update */}
+                <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
               </div>
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-foreground">
@@ -245,7 +243,7 @@ export default function MeetHome() {
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
                   {isTeacher
-                    ? "Upload a PDF or PPTX to start presenting with Study Buddy active"
+                    ? "Upload a PDF or PPTX to start presenting with Catchy active"
                     : "Enter the room code shared by your teacher to join the session"}
                 </p>
               </div>

@@ -187,10 +187,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     channel.on("broadcast", { event: "peer_ready" }, handlePeerReady);
 
     return () => {
-      channel.off("broadcast", { event: "webrtc_offer" }, handleOffer);
-      channel.off("broadcast", { event: "webrtc_answer" }, handleAnswer);
-      channel.off("broadcast", { event: "webrtc_ice" }, handleICE);
-      channel.off("broadcast", { event: "peer_ready" }, handlePeerReady);
+      // Supabase JS v2 doesn't have .off(); cleanup happens on channel.unsubscribe()
     };
   }, [channel, enabled, localPeerId, createPC, initiateOffer]);
 
