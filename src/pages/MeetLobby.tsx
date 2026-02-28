@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Mic, MicOff, Video, VideoOff, Monitor, Copy, Check, Users, AlertTriangle } from "lucide-react";
-import buddyImg from "@/assets/buddy-owl.png";
+import mascotImg from "@/assets/catchy.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaStream } from "@/hooks/useMediaStream";
 import { supabase } from "@/integrations/supabase/client";
