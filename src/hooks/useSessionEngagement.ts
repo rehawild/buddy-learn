@@ -49,6 +49,15 @@ export interface QuestionDispatchStat {
   accuracy: number; // 0-100
 }
 
+export interface SlideBreakdown {
+  slideIndex: number;
+  totalQuestions: number;
+  totalResponses: number;
+  correctResponses: number;
+  accuracy: number;         // 0-100
+  avgResponseTimeMs: number;
+}
+
 const EMOJI_LABELS: Record<string, string> = {
   "👍": "Thumbs Up",
   "🔥": "Fire",
@@ -66,6 +75,7 @@ export function useSessionEngagement(sessionId: string | null, live = false) {
   const [difficultyBreakdown, setDifficultyBreakdown] = useState<DifficultyBreakdown[]>([]);
   const [reactions, setReactions] = useState<ReactionSummary[]>([]);
   const [questionStats, setQuestionStats] = useState<QuestionDispatchStat[]>([]);
+  const [slideBreakdown, setSlideBreakdown] = useState<SlideBreakdown[]>([]);
   const [loading, setLoading] = useState(false);
   const initialFetchDone = useRef(false);
 
@@ -197,6 +207,30 @@ export function useSessionEngagement(sessionId: string | null, live = false) {
       const sortedStats = Array.from(questionMap.values()).sort((a, b) => a.accuracy - b.accuracy);
       setQuestionStats(sortedStats);
 
+      // ── Per-slide breakdown ──
+      const slideMap = new Map<number, { questions: number; responses: number; correct: number; totalTimeMs: number }>();
+      for (const stat of questionMap.values()) {
+        const existing = slideMap.get(stat.slideIndex) || { questions: 0, responses: 0, correct: 0, totalTimeMs: 0 };
+        existing.questions++;
+        for (const r of stat.responses) {
+          existing.responses++;
+          if (r.correct) existing.correct++;
+          existing.totalTimeMs += r.responseTimeMs;
+        }
+        slideMap.set(stat.slideIndex, existing);
+      }
+      const slides: SlideBreakdown[] = Array.from(slideMap.entries())
+        .map(([idx, d]) => ({
+          slideIndex: idx,
+          totalQuestions: d.questions,
+          totalResponses: d.responses,
+          correctResponses: d.correct,
+          accuracy: d.responses > 0 ? Math.round((d.correct / d.responses) * 100) : 0,
+          avgResponseTimeMs: d.responses > 0 ? Math.round(d.totalTimeMs / d.responses) : 0,
+        }))
+        .sort((a, b) => a.slideIndex - b.slideIndex);
+      setSlideBreakdown(slides);
+
       // ── Difficulty breakdown ──
       // Merge coordinator_response data with student question_response events for richer breakdown
       const questionResponses = events.filter((e) => e.event_type === "question_response");
@@ -275,6 +309,7 @@ export function useSessionEngagement(sessionId: string | null, live = false) {
       setDifficultyBreakdown([]);
       setReactions([]);
       setQuestionStats([]);
+      setSlideBreakdown([]);
       return;
     }
     initialFetchDone.current = true;
@@ -288,5 +323,5 @@ export function useSessionEngagement(sessionId: string | null, live = false) {
     return () => clearInterval(interval);
   }, [live, sessionId, fetchData]);
 
-  return { students, timeline, difficultyBreakdown, reactions, questionStats, loading };
+  return { students, timeline, difficultyBreakdown, reactions, questionStats, slideBreakdown, loading };
 }

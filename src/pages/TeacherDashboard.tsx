@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Users, Brain, Zap, Target, Loader2, Sparkles } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { useTeacherSessions } from "@/hooks/useTeacherSessions";
-import { useSessionEngagement, type StudentRow, type QuestionDispatchStat } from "@/hooks/useSessionEngagement";
+import { useSessionEngagement, type StudentRow, type QuestionDispatchStat, type SlideBreakdown } from "@/hooks/useSessionEngagement";
+import { Cell } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import {
   mockStudents,
@@ -45,7 +46,7 @@ export default function TeacherDashboard() {
 
   // Real engagement data
   const isLive = selectedSession?.status === "active";
-  const { students: realStudents, timeline: realTimeline, difficultyBreakdown: realDifficulty, reactions: realReactions, questionStats, loading: engagementLoading } =
+  const { students: realStudents, timeline: realTimeline, difficultyBreakdown: realDifficulty, reactions: realReactions, questionStats, slideBreakdown, loading: engagementLoading } =
     useSessionEngagement(selectedSessionId || null, isLive);
 
   // Use real data when available, fall back to mock
@@ -122,6 +123,16 @@ export default function TeacherDashboard() {
   const barConfig = {
     correct: { label: "Correct", color: "hsl(145, 60%, 45%)" },
     incorrect: { label: "Incorrect", color: "hsl(0, 72%, 55%)" },
+  };
+
+  // Per-slide accuracy chart data
+  const slideBarData = slideBreakdown.map((s) => ({
+    slide: `${s.slideIndex + 1}`,
+    accuracy: s.accuracy,
+    fill: s.accuracy >= 70 ? "hsl(145, 60%, 45%)" : s.accuracy >= 40 ? "hsl(38, 90%, 50%)" : "hsl(0, 72%, 55%)",
+  }));
+  const slideBarConfig = {
+    accuracy: { label: "Accuracy %", color: "hsl(168, 60%, 48%)" },
   };
 
   const isLoading = sessionsLoading || engagementLoading;
@@ -237,6 +248,63 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Per-Slide Accuracy */}
+        {slideBreakdown.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Accuracy by Slide</CardTitle>
+              <CardDescription className="text-xs">Identify which slides had the lowest comprehension</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ChartContainer config={slideBarConfig} className="h-[240px] w-full">
+                <BarChart data={slideBarData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+                  <XAxis dataKey="slide" tick={{ fontSize: 11 }} className="fill-muted-foreground" label={{ value: "Slide", position: "insideBottom", offset: -2, fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
+                    {slideBarData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">Slide</TableHead>
+                    <TableHead className="text-center w-24">Questions</TableHead>
+                    <TableHead className="text-center w-24">Responses</TableHead>
+                    <TableHead className="text-center w-24">Accuracy</TableHead>
+                    <TableHead className="hidden sm:table-cell text-center w-28">Avg Response</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {slideBreakdown.map((s) => (
+                    <TableRow key={s.slideIndex}>
+                      <TableCell className="font-mono text-xs">{s.slideIndex + 1}</TableCell>
+                      <TableCell className="text-center text-xs font-mono">{s.totalQuestions}</TableCell>
+                      <TableCell className="text-center text-xs font-mono">{s.totalResponses}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center gap-2 justify-center">
+                          <Progress value={s.accuracy} className="h-2 w-12" />
+                          <span className={`text-xs font-mono ${s.accuracy >= 70 ? "text-[hsl(145,60%,45%)]" : s.accuracy >= 40 ? "text-[hsl(38,90%,50%)]" : "text-destructive"}`}>
+                            {s.totalResponses > 0 ? `${s.accuracy}%` : "—"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-center text-xs font-mono">
+                        {s.totalResponses > 0 ? `${(s.avgResponseTimeMs / 1000).toFixed(1)}s` : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Emoji Reactions */}
         <Card>
