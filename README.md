@@ -1,73 +1,52 @@
-# Welcome to your Lovable project
+## Inspiration
 
-## Project info
+Students often look attentive while mentally drifting away. Most ed-tech tools frame engagement as a teacher dashboard problem. We flipped that by giving students a companion that senses disengagement and pulls them back in, without webcams or invasive monitoring. Engagement is inferred only from interaction signals.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## What it does
 
-## How can I edit this code?
+Catchy is an AI on-screen pet agent that sits on top of live presentations.
 
-There are several ways of editing your application.
+Proactive: It listens to the teacher, matches speech with slide content, and triggers A/B questions when a topic is actually covered, not on a timer.
+Reactive: Students can ask for simpler explanations and get short, slide-grounded answers.
+Emotional mirror: Catchy’s mood reflects student engagement using tab focus, answer accuracy and response time. No camera.
 
-**Use Lovable**
+Teachers get live per-student engagement analytics and AI-generated assessments. Everything runs in real time over WebRTC with Supabase Realtime for sync and events.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## How we built it
 
-Changes made via Lovable will be committed automatically to this repo.
+React, TypeScript, Vite, Tailwind, shadcn/ui on the frontend.
+Supabase for auth, database, realtime, and storage.
+Azure OpenAI via edge functions for questions, chat, transcripts, and assessment.
+Web Speech API for live transcripts.
+WebRTC for live audio and video.
+Lightweight engagement tracking batched every 30 seconds.
+A teacher-side coordinator triggers questions based on transcript coverage, while a student-side agent manages the buddy and queue.
 
-**Use your preferred IDE**
+## Challenges
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+WebRTC glare and signaling races.
+Deciding when content was sufficiently covered.
+Noisy engagement signals causing mood flicker.
+Keeping teachers in control of AI-generated questions.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## What we’re proud of
 
-Follow these steps:
+Content-aware question timing.
+Privacy-first engagement tracking.
+A mood system that meaningfully affects behavior.
+A fully live end-to-end pipeline.
+Actionable AI feedback for teachers.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## What we learned
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Realtime infrastructure matters more than model size.
+Simple interaction signals are enough to estimate engagement.
+AI works best in classrooms when teachers stay in control.
 
-# Step 3: Install the necessary dependencies.
-npm i
+## What’s next
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Buddy progression and rewards.
+Multi-language support.
+Adaptive difficulty per student.
+LMS integrations.
+Long-term engagement analytics.
