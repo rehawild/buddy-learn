@@ -142,10 +142,8 @@ export default function BuddyOverlay({
   }, [pointerToPercent]);
 
   const handleDragEnd = useCallback(() => {
-    const wasDrag = dragRef.current.moved;
     dragRef.current = { active: false, startX: 0, startY: 0, moved: false };
     setDragging(false);
-    if (wasDrag) setPinned(true);
   }, []);
 
   useEffect(() => {

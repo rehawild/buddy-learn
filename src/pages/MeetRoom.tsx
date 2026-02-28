@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Eye, Users, Loader2, MessageSquareText } from "lucide-react";
+import { ChevronRight, ChevronLeft, Eye, Users, Loader2, MessageSquareText, Subtitles } from "lucide-react";
 import { useMediaStream } from "@/hooks/useMediaStream";
 import { lessons, type Question } from "@/data/lessons";
 import ParticipantTile from "@/components/ParticipantTile";
@@ -791,6 +791,23 @@ export default function MeetRoom() {
                 </div>
               )}
 
+              {/* Viewer: subtitles toggle */}
+              {isViewer && (
+                <div className="mx-4 mt-2">
+                  <button
+                    onClick={() => setShowTranscript((p) => !p)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-medium transition-colors ${
+                      showTranscript
+                        ? "bg-primary/15 text-primary border-primary/30"
+                        : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+                    }`}
+                  >
+                    <Subtitles className="w-3 h-3" />
+                    {showTranscript ? "Hide subtitles" : "Show subtitles"}
+                  </button>
+                </div>
+              )}
+
               {/* Viewer: presenter position indicator */}
               {isViewer && freeBrowse && displayIdx !== presenterSlide && (
                 <div className="mx-4 mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary">
@@ -884,8 +901,8 @@ export default function MeetRoom() {
                       </>
                     )}
 
-                    {/* Live transcript subtitle bar (teacher toggle, always-on for students) */}
-                    {(showTranscript || isViewer) && transcriptLines.length > 0 && (
+                    {/* Live transcript subtitle bar */}
+                    {showTranscript && transcriptLines.length > 0 && (
                       <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-20">
                         <div className="flex flex-col gap-1.5 items-center">
                           {transcriptLines.slice(-2).map((line, i) => (
