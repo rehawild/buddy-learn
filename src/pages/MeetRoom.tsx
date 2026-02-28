@@ -180,6 +180,43 @@ export default function MeetRoom() {
   const [sessionEnded, setSessionEnded] = useState(false);
   const presenterSeenRef = useRef(false);
 
+  // Viewer: sync state from presenter
+  useEffect(() => {
+    if (!isViewer) return;
+    setLessonIdx(remoteState.lessonIdx);
+    if (!freeBrowse) {
+      setSectionIdx(remoteState.sectionIdx);
+    }
+    setBuddyEnabled(remoteState.buddyEnabled);
+    setDifficulty(remoteState.difficulty);
+    if (!hasUploadedSlides && remoteState.activeQuestionIdx !== null) {
+      const lesson = lessons[remoteState.lessonIdx];
+      const section = lesson?.sections[remoteState.sectionIdx];
+      const q = section?.questions[remoteState.activeQuestionIdx];
+      setActiveQuestion(q || null);
+      setActiveQuestionIdx(remoteState.activeQuestionIdx);
+    } else if (hasUploadedSlides) {
+      setActiveQuestion(null);
+      setActiveQuestionIdx(null);
+    } else {
+      setActiveQuestion(null);
+      setActiveQuestionIdx(null);
+    }
+    setPresenting(true);
+  }, [isViewer, remoteState, freeBrowse, hasUploadedSlides]);
+
+  // Demo lesson data (only when no uploaded slides)
+  const lesson = hasUploadedSlides ? null : lessons[lessonIdx];
+  const totalSlides = hasUploadedSlides ? uploadedSlides!.length : (lesson?.sections.length ?? 0);
+  const displayIdx = isViewer && freeBrowse ? localSectionIdx : sectionIdx;
+  const section = hasUploadedSlides ? null : lesson?.sections[displayIdx] ?? null;
+  const isLastSection = displayIdx >= totalSlides - 1;
+  const presenterSlide = sectionIdx;
+
+  const slideTitle = hasUploadedSlides
+    ? (presentationTitle || "Presentation")
+    : (lesson?.title || "Study Session");
+
   // ── Build enriched recap state ──
   const buildRecapState = useCallback(() => {
     const agg = engagementTracker.getAggregate();
@@ -246,43 +283,6 @@ export default function MeetRoom() {
       return () => clearTimeout(timer);
     }
   }, [isViewer, realtimeParticipants, sessionEnded, engagementTracker, navigate, buildRecapState]);
-
-  // Viewer: sync state from presenter
-  useEffect(() => {
-    if (!isViewer) return;
-    setLessonIdx(remoteState.lessonIdx);
-    if (!freeBrowse) {
-      setSectionIdx(remoteState.sectionIdx);
-    }
-    setBuddyEnabled(remoteState.buddyEnabled);
-    setDifficulty(remoteState.difficulty);
-    if (!hasUploadedSlides && remoteState.activeQuestionIdx !== null) {
-      const lesson = lessons[remoteState.lessonIdx];
-      const section = lesson?.sections[remoteState.sectionIdx];
-      const q = section?.questions[remoteState.activeQuestionIdx];
-      setActiveQuestion(q || null);
-      setActiveQuestionIdx(remoteState.activeQuestionIdx);
-    } else if (hasUploadedSlides) {
-      setActiveQuestion(null);
-      setActiveQuestionIdx(null);
-    } else {
-      setActiveQuestion(null);
-      setActiveQuestionIdx(null);
-    }
-    setPresenting(true);
-  }, [isViewer, remoteState, freeBrowse, hasUploadedSlides]);
-
-  // Demo lesson data (only when no uploaded slides)
-  const lesson = hasUploadedSlides ? null : lessons[lessonIdx];
-  const totalSlides = hasUploadedSlides ? uploadedSlides!.length : (lesson?.sections.length ?? 0);
-  const displayIdx = isViewer && freeBrowse ? localSectionIdx : sectionIdx;
-  const section = hasUploadedSlides ? null : lesson?.sections[displayIdx] ?? null;
-  const isLastSection = displayIdx >= totalSlides - 1;
-  const presenterSlide = sectionIdx;
-
-  const slideTitle = hasUploadedSlides
-    ? (presentationTitle || "Presentation")
-    : (lesson?.title || "Study Session");
 
   // Determine which question to show in BuddyOverlay
   // For uploaded slides: students get AI-dispatched questions, teachers see nothing (they dispatch)
