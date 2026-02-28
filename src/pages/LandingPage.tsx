@@ -70,7 +70,7 @@ export default function LandingPage() {
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-3xl mx-auto text-center space-y-8">
           <div className="w-28 h-28 mx-auto rounded-2xl overflow-hidden buddy-glow">
-            <img src={mascotImg} alt="Catchy mascot" className="w-full h-full object-cover" />
+            <img src="/hero-anim.gif" alt="Catchy mascot" className="w-full h-full object-cover" />
           </div>
 
           <div className="space-y-4">
