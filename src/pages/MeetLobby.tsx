@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Mic, MicOff, Video, VideoOff, Monitor, Copy, Check, Users, AlertTriangle } from "lucide-react";
 import mascotImg from "@/assets/catchy.png";
@@ -14,7 +14,6 @@ export default function MeetLobby() {
   const isTeacher = role === "teacher";
 
   const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio, error } = useMediaStream();
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [copied, setCopied] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const [sessionNotFound, setSessionNotFound] = useState(false);
@@ -55,11 +54,14 @@ export default function MeetLobby() {
     checkAccess();
   }, [roomCode, user, isTeacher]);
 
-  useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-    }
-  }, [stream]);
+  const videoCallbackRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (el) {
+        el.srcObject = stream ?? null;
+      }
+    },
+    [stream],
+  );
 
   const handleCopy = () => {
     navigator.clipboard.writeText(roomCode);
@@ -122,9 +124,15 @@ export default function MeetLobby() {
         {/* Camera preview */}
         <div className="flex-1 w-full max-w-xl">
           <div className="aspect-video rounded-2xl bg-meet-surface border border-border overflow-hidden relative shadow-xl">
-            {videoEnabled && stream ? (
-              <video ref={videoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover mirror" style={{ transform: "scaleX(-1)" }} />
-            ) : (
+            <video
+              ref={videoCallbackRef}
+              autoPlay
+              muted
+              playsInline
+              className={`absolute inset-0 w-full h-full object-cover ${videoEnabled && stream ? "" : "hidden"}`}
+              style={{ transform: "scaleX(-1)" }}
+            />
+            {!(videoEnabled && stream) && (
               <div className="absolute inset-0 flex items-center justify-center bg-meet-bar">
                 <VideoOff className="w-12 h-12 text-muted-foreground" />
               </div>

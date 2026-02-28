@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useCallback } from "react";
 import { MicOff, Hand, Pin, GraduationCap } from "lucide-react";
 import type { Participant } from "@/data/participants";
 
@@ -12,13 +12,14 @@ interface ParticipantTileProps {
 }
 
 export default function ParticipantTile({ participant, size = "large", speaking = false, stream, handRaised, role }: ParticipantTileProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream ?? null;
-    }
-  }, [stream]);
+  const videoCallbackRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (el) {
+        el.srcObject = stream ?? null;
+      }
+    },
+    [stream],
+  );
 
   const sizeClasses = {
     large: "min-h-[200px]",
@@ -36,16 +37,15 @@ export default function ParticipantTile({ participant, size = "large", speaking 
         speaking ? "ring-2 ring-primary" : ""
       }`}
     >
-      {showVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={participant.isSelf}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={participant.isSelf ? { transform: "scaleX(-1)" } : undefined}
-        />
-      ) : (
+      <video
+        ref={videoCallbackRef}
+        autoPlay
+        playsInline
+        muted={participant.isSelf}
+        className={`absolute inset-0 w-full h-full object-cover ${showVideo ? "" : "hidden"}`}
+        style={participant.isSelf ? { transform: "scaleX(-1)" } : undefined}
+      />
+      {!showVideo && (
         <div
           className="rounded-full flex items-center justify-center text-foreground font-semibold select-none"
           style={{

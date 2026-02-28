@@ -11,12 +11,31 @@ interface UseWebRTCOptions {
 }
 
 const ICE_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun.relay.metered.ca:80" },
+    {
+      urls: "turn:global.relay.metered.ca:80",
+      username: "e7e6549af4af40509bfcb082",
+      credential: "mFKR6FUZP6RISrFc",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:443",
+      username: "e7e6549af4af40509bfcb082",
+      credential: "mFKR6FUZP6RISrFc",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:443?transport=tcp",
+      username: "e7e6549af4af40509bfcb082",
+      credential: "mFKR6FUZP6RISrFc",
+    },
+  ],
 };
 
 export function useWebRTC({ localStream, channel, localPeerId, participants, enabled }: UseWebRTCOptions) {
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const channelRef = useRef(channel);
   const localStreamRef = useRef(localStream);
   const localPeerIdRef = useRef(localPeerId);
@@ -37,10 +56,23 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     });
   }, []);
 
+  const flushICEBuffer = useCallback(async (pc: RTCPeerConnection, remotePeerId: string) => {
+    const buf = iceCandidateBuffer.current.get(remotePeerId);
+    if (buf && buf.length > 0) {
+      console.log(`[WebRTC] Flushing ${buf.length} buffered ICE candidates for ${remotePeerId.slice(0, 8)}`);
+      for (const c of buf) {
+        await pc.addIceCandidate(new RTCIceCandidate(c));
+      }
+      iceCandidateBuffer.current.delete(remotePeerId);
+    }
+  }, []);
+
   const initiateOffer = useCallback((pc: RTCPeerConnection, remotePeerId: string) => {
+    console.log(`[WebRTC] Creating offer for ${remotePeerId.slice(0, 8)}`);
     pc.createOffer()
       .then((offer) => pc.setLocalDescription(offer).then(() => offer))
       .then((offer) => {
+        console.log(`[WebRTC] Sending offer to ${remotePeerId.slice(0, 8)}`);
         channelRef.current?.send({
           type: "broadcast",
           event: "webrtc_offer",
@@ -51,6 +83,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
   }, []);
 
   const createPC = useCallback((remotePeerId: string): RTCPeerConnection => {
+    console.log(`[WebRTC] Creating peer connection for ${remotePeerId.slice(0, 8)}`);
     const pc = new RTCPeerConnection(ICE_CONFIG);
 
     // Add local tracks
@@ -58,12 +91,14 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       localStreamRef.current.getTracks().forEach((track) => {
         pc.addTrack(track, localStreamRef.current!);
       });
+      console.log(`[WebRTC] Added ${localStreamRef.current.getTracks().length} local tracks`);
     }
 
     // Handle remote tracks
     pc.ontrack = (e) => {
       const [remoteStream] = e.streams;
       if (remoteStream) {
+        console.log(`[WebRTC] Received remote track (${e.track.kind}) from ${remotePeerId.slice(0, 8)}`);
         updateStreams(remotePeerId, remoteStream);
       }
     };
@@ -87,9 +122,14 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     };
 
     pc.onconnectionstatechange = () => {
+      console.log(`[WebRTC] Connection state (${remotePeerId.slice(0, 8)}): ${pc.connectionState}`);
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {
         closePC(remotePeerId);
       }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[WebRTC] ICE connection state (${remotePeerId.slice(0, 8)}): ${pc.iceConnectionState}`);
     };
 
     pcsRef.current.set(remotePeerId, pc);
@@ -99,8 +139,10 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
   const closePC = useCallback((remotePeerId: string) => {
     const pc = pcsRef.current.get(remotePeerId);
     if (pc) {
+      console.log(`[WebRTC] Closing peer connection for ${remotePeerId.slice(0, 8)}`);
       pc.close();
       pcsRef.current.delete(remotePeerId);
+      iceCandidateBuffer.current.delete(remotePeerId);
       updateStreams(remotePeerId, null);
     }
   }, [updateStreams]);
@@ -109,15 +151,20 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
   useEffect(() => {
     if (!channel || !enabled) return;
 
+    console.log(`[WebRTC] Registering signaling listeners (localPeerId: ${localPeerId.slice(0, 8)})`);
+
     const handleOffer = async ({ payload }: { payload: any }) => {
       const { from, to, sdp } = payload;
       if (to !== localPeerId) return;
+
+      console.log(`[WebRTC] Received offer from ${from.slice(0, 8)}`);
 
       // Close existing PC if signaling state is incompatible (handle re-offers)
       let pc = pcsRef.current.get(from);
       if (pc && pc.signalingState !== "stable") {
         pc.close();
         pcsRef.current.delete(from);
+        iceCandidateBuffer.current.delete(from);
         pc = undefined;
       }
       if (!pc) {
@@ -135,9 +182,12 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      await flushICEBuffer(pc, from);
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
+      console.log(`[WebRTC] Sending answer to ${from.slice(0, 8)}`);
       channelRef.current?.send({
         type: "broadcast",
         event: "webrtc_answer",
@@ -149,9 +199,12 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       const { from, to, sdp } = payload;
       if (to !== localPeerId) return;
 
+      console.log(`[WebRTC] Received answer from ${from.slice(0, 8)}`);
+
       const pc = pcsRef.current.get(from);
       if (pc && pc.signalingState === "have-local-offer") {
         await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        await flushICEBuffer(pc, from);
       }
     };
 
@@ -160,8 +213,16 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       if (to !== localPeerId) return;
 
       const pc = pcsRef.current.get(from);
-      if (pc && pc.remoteDescription) {
+      if (!pc) return;
+
+      if (pc.remoteDescription) {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } else {
+        // Buffer until remoteDescription is set
+        const buf = iceCandidateBuffer.current.get(from) || [];
+        buf.push(candidate);
+        iceCandidateBuffer.current.set(from, buf);
+        console.log(`[WebRTC] Buffered ICE candidate from ${from.slice(0, 8)} (${buf.length} total)`);
       }
     };
 
@@ -169,6 +230,8 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     const handlePeerReady = ({ payload }: { payload: any }) => {
       const { from } = payload;
       if (from === localPeerId) return;
+
+      console.log(`[WebRTC] Received peer_ready from ${from.slice(0, 8)}`);
 
       const existingPC = pcsRef.current.get(from);
 
@@ -187,6 +250,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
         // We are the responding side (higher ID)
         if (!existingPC) {
           // No connection yet and the other side should initiate — broadcast our own ready
+          console.log(`[WebRTC] Sending peer_ready back (responding side)`);
           channelRef.current?.send({
             type: "broadcast",
             event: "peer_ready",
@@ -204,6 +268,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     // Broadcast readiness now that listeners are registered — ensures peers
     // that sent offers before we were listening will re-initiate
     if (localStreamRef.current) {
+      console.log(`[WebRTC] Broadcasting peer_ready (listeners registered)`);
       channel.send({
         type: "broadcast",
         event: "peer_ready",
@@ -214,7 +279,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     return () => {
       // Supabase JS v2 doesn't have .off(); cleanup happens on channel.unsubscribe()
     };
-  }, [channel, enabled, localPeerId, createPC, initiateOffer]);
+  }, [channel, enabled, localPeerId, createPC, initiateOffer, flushICEBuffer]);
 
   // On participant changes, initiate connections to new peers
   useEffect(() => {
@@ -245,6 +310,8 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
   useEffect(() => {
     if (!localStream) return;
 
+    console.log(`[WebRTC] Local stream changed, replacing tracks on ${pcsRef.current.size} connections`);
+
     for (const pc of pcsRef.current.values()) {
       const senders = pc.getSenders();
       for (const track of localStream.getTracks()) {
@@ -259,6 +326,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
 
     // Announce stream readiness to trigger connections from peers that missed us
     if (channel) {
+      console.log(`[WebRTC] Broadcasting peer_ready (stream changed)`);
       channel.send({
         type: "broadcast",
         event: "peer_ready",
@@ -270,10 +338,12 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
   // Cleanup all connections on unmount
   useEffect(() => {
     return () => {
+      console.log("[WebRTC] Cleanup: closing all peer connections");
       for (const pc of pcsRef.current.values()) {
         pc.close();
       }
       pcsRef.current.clear();
+      iceCandidateBuffer.current.clear();
     };
   }, []);
 
