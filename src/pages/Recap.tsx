@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { RotateCcw, Home, Clock, Brain, MessageCircle, Sparkles } from "lucide-react";
+import { Home, Clock, Brain, MessageCircle, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 
 interface EngagementData {
   avgResponseTimeMs: number;
@@ -8,11 +8,17 @@ interface EngagementData {
   reactionsCount: number;
 }
 
+interface AnsweredQuestion {
+  question: string;
+  correct: boolean;
+}
+
 interface RecapState {
   lessonTitle: string;
   correct: number;
   total: number;
   concepts: string[];
+  answeredQuestions?: AnsweredQuestion[];
   engagement?: EngagementData;
 }
 
@@ -102,6 +108,26 @@ export default function Recap() {
           </div>
         )}
 
+        {data.answeredQuestions && data.answeredQuestions.length > 0 && (
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Your Answers</h3>
+            <ul className="space-y-2">
+              {data.answeredQuestions.map((q, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  {q.correct ? (
+                    <CheckCircle2 className="w-4 h-4 text-correct flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-incorrect flex-shrink-0 mt-0.5" />
+                  )}
+                  <span className={q.correct ? "text-secondary-foreground" : "text-secondary-foreground"}>
+                    {q.question}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {data.concepts.length > 0 && (
           <div className="bg-card border border-border rounded-xl p-5">
             <h3 className="text-sm font-semibold text-foreground mb-3">Key Concepts Covered</h3>
@@ -116,20 +142,12 @@ export default function Recap() {
           </div>
         )}
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate("/")}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
-          >
-            <RotateCcw className="w-4 h-4" /> Try Again
-          </button>
-          <button
-            onClick={() => navigate("/")}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-secondary-foreground font-semibold hover:bg-secondary/80 transition-colors"
-          >
-            <Home className="w-4 h-4" /> Home
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/")}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+        >
+          <Home className="w-4 h-4" /> Back to Home
+        </button>
       </div>
     </div>
   );

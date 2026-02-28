@@ -71,10 +71,10 @@ export default function MeetRoom() {
   const [sectionIdx, setSectionIdx] = useState(0);
   const [buddyEnabled, setBuddyEnabled] = useState(true);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("easy");
-  const [showTranscript, setShowTranscript] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(isViewer);
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number | null>(null);
-  const [results, setResults] = useState({ correct: 0, total: 0, concepts: [] as string[] });
+  const [results, setResults] = useState({ correct: 0, total: 0, concepts: [] as string[], answeredQuestions: [] as { question: string; correct: boolean }[] });
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Elapsed timer
@@ -253,6 +253,7 @@ export default function MeetRoom() {
       correct: results.correct,
       total: results.total,
       concepts: results.concepts.slice(0, 3),
+      answeredQuestions: results.answeredQuestions,
       engagement: {
         avgResponseTimeMs,
         attentionScore: agg.attentionScore,
@@ -421,10 +422,12 @@ export default function MeetRoom() {
       ? (aiActiveQuestion?.topic || aiActiveQuestion?.highlight || "")
       : (section?.title || "");
 
+    const questionText = effectiveQuestion?.question || "";
     setResults((prev) => ({
       correct: prev.correct + (correct ? 1 : 0),
       total: prev.total + 1,
       concepts: [...new Set([...prev.concepts, conceptLabel])].filter(Boolean).slice(-5),
+      answeredQuestions: [...prev.answeredQuestions, { question: questionText, correct }],
     }));
 
     // Update buddy mood phase
