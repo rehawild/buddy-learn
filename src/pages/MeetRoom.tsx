@@ -884,8 +884,8 @@ export default function MeetRoom() {
                       </>
                     )}
 
-                    {/* Live transcript subtitle bar (toggle-controlled) */}
-                    {showTranscript && transcriptLines.length > 0 && (
+                    {/* Live transcript subtitle bar (teacher toggle, always-on for students) */}
+                    {(showTranscript || isViewer) && transcriptLines.length > 0 && (
                       <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl z-20">
                         <div className="flex flex-col gap-1.5 items-center">
                           {transcriptLines.slice(-2).map((line, i) => (

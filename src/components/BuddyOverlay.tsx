@@ -75,11 +75,11 @@ export default function BuddyOverlay({
       setPhase("question");
       setUserAnswer("");
       setIsOpen(true);
-      setPos(SAFE_POS);
+      if (!pinned) setPos(SAFE_POS);
     } else if (!question) {
       if (phase !== "feedback") setPhase("idle");
     }
-  }, [question, enabled]);
+  }, [question, enabled, pinned]);
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth" });
