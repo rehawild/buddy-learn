@@ -112,130 +112,145 @@ export default function BuddyOverlay({
 
   if (!enabled) return null;
 
+  // When dialog is open, use tighter clamp to keep the 320px panel within bounds.
+  // Dialog + mascot total height ≈ 350px, width = 320px.
+  // Clamp center point so edges don't overflow.
+  const dialogOpen = isOpen && phase !== "idle" && !!question;
+  const nearTop = pos.y < 35;
+
+  const easing = "cubic-bezier(0.25, 0.1, 0.25, 1)";
+  const transitionDuration = isOpen ? "600ms" : `${FLOAT_STEP_MS}ms`;
+
   return (
-    <div
-      className="absolute z-30 flex flex-col items-end gap-2 pointer-events-none"
-      style={{
-        left: `clamp(10%, ${pos.x}%, 90%)`,
-        top: `clamp(5%, ${pos.y}%, 85%)`,
-        transform: "translate(-50%, -50%)",
-        transition: isOpen
-          ? "left 600ms cubic-bezier(0.25, 0.1, 0.25, 1), top 600ms cubic-bezier(0.25, 0.1, 0.25, 1)"
-          : `left ${FLOAT_STEP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1), top ${FLOAT_STEP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`,
-      }}
-    >
-      {/* Dialog panel */}
-      {isOpen && phase !== "idle" && question && (
-        <div className="w-80 bg-card border border-border rounded-xl shadow-2xl overflow-hidden buddy-bounce pointer-events-auto">
-          {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-secondary/50">
-            <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-buddy flex-shrink-0">
-              <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">Catchy</p>
-              <p className="text-xs text-muted-foreground">
-                {phase === "question" ? "Quick check!" : isCorrect ? "Nice work!" : "Keep trying!"}
-              </p>
-            </div>
-            {questionSource && (
-              <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
-                questionSource === "transcript"
-                  ? "bg-purple-500/20 text-purple-300"
-                  : "bg-primary/20 text-primary"
-              }`}>
-                {questionSource === "transcript" ? "From discussion" : "From slides"}
-              </span>
-            )}
-            <button
-              onClick={handleClose}
-              className="p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Question content */}
-          <ScrollArea className="max-h-56">
-            <div className="p-3 space-y-2">
-              {question.highlight && (
-                <div className="text-xs text-muted-foreground px-1">
-                  Key concept: <span className="text-buddy font-semibold">"{question.highlight}"</span>
-                </div>
-              )}
-
-              <div className="flex justify-start">
-                <div className="max-w-[85%] px-3 py-2 rounded-lg bg-secondary text-sm text-foreground rounded-bl-none">
-                  {question.question}
-                </div>
+    <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
+      <div
+        className={`absolute flex ${nearTop && dialogOpen ? "flex-col-reverse" : "flex-col"} items-end gap-2`}
+        style={{
+          left: dialogOpen
+            ? `clamp(10.5rem, ${pos.x}%, calc(100% - 10.5rem))`
+            : `clamp(2.5rem, ${pos.x}%, calc(100% - 2.5rem))`,
+          top: dialogOpen
+            ? (nearTop
+              ? `clamp(2.5rem, ${pos.y}%, calc(100% - 22rem))`
+              : `clamp(22rem, ${pos.y}%, calc(100% - 5rem))`)
+            : `clamp(2.5rem, ${pos.y}%, calc(100% - 2.5rem))`,
+          transform: "translate(-50%, -50%)",
+          transition: `left ${transitionDuration} ${easing}, top ${transitionDuration} ${easing}`,
+        }}
+      >
+        {/* Dialog panel */}
+        {dialogOpen && (
+          <div className="w-80 max-w-[min(20rem,calc(100vw-3rem))] bg-card border border-border rounded-xl shadow-2xl overflow-hidden buddy-bounce pointer-events-auto">
+            {/* Header */}
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/50">
+              <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-buddy flex-shrink-0">
+                <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
               </div>
-
-              {phase === "question" && (
-                <div className="fade-up">
-                  {question.type === "choice" && question.options ? (
-                    <div className="flex gap-2 px-1">
-                      {question.options.map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => !readOnly && handleSubmit(opt)}
-                          disabled={readOnly}
-                          className={`flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors font-medium ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <form
-                      onSubmit={(e) => { e.preventDefault(); handleSubmit(userAnswer); }}
-                      className="flex gap-2 px-1"
-                    >
-                      <input
-                        type="text"
-                        value={userAnswer}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                        placeholder="Type your answer…"
-                        className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-secondary text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-buddy"
-                        autoFocus
-                      />
-                      <button type="submit" className="px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">
-                        Go
-                      </button>
-                    </form>
-                  )}
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight">Catchy</p>
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  {phase === "question" ? "Quick check!" : isCorrect ? "Nice work!" : "Keep trying!"}
+                </p>
+              </div>
+              {questionSource && (
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold flex-shrink-0 ${
+                  questionSource === "transcript"
+                    ? "bg-purple-500/20 text-purple-300"
+                    : "bg-primary/20 text-primary"
+                }`}>
+                  {questionSource === "transcript" ? "From discussion" : "From slides"}
+                </span>
               )}
+              <button
+                onClick={handleClose}
+                className="p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground flex-shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-              {phase === "feedback" && (
-                <div className="flex justify-start fade-up">
-                  <div className={`max-w-[85%] px-3 py-2 rounded-lg rounded-bl-none text-sm ${
-                    isCorrect ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"
-                  }`}>
-                    <div className="flex items-center gap-1 font-semibold mb-0.5">
-                      <span>{isCorrect ? "✓" : "✗"}</span>
-                      {isCorrect ? "Correct!" : "Not quite!"}
-                    </div>
-                    <p className="text-xs leading-relaxed opacity-90">
-                      {isCorrect ? question.reinforcement : question.correction}
-                    </p>
+            {/* Question content */}
+            <ScrollArea className="max-h-48">
+              <div className="p-3 space-y-2">
+                {question.highlight && (
+                  <div className="text-xs text-muted-foreground px-1">
+                    Key concept: <span className="text-buddy font-semibold">"{question.highlight}"</span>
+                  </div>
+                )}
+
+                <div className="flex justify-start">
+                  <div className="max-w-[90%] px-3 py-2 rounded-lg bg-secondary text-sm text-foreground rounded-bl-none leading-relaxed">
+                    {question.question}
                   </div>
                 </div>
-              )}
 
-              <div ref={scrollAnchorRef} />
-            </div>
-          </ScrollArea>
-        </div>
-      )}
+                {phase === "question" && (
+                  <div className="fade-up">
+                    {question.type === "choice" && question.options ? (
+                      <div className="flex gap-2 px-1">
+                        {question.options.map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => !readOnly && handleSubmit(opt)}
+                            disabled={readOnly}
+                            className={`flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors font-medium ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); handleSubmit(userAnswer); }}
+                        className="flex gap-2 px-1"
+                      >
+                        <input
+                          type="text"
+                          value={userAnswer}
+                          onChange={(e) => setUserAnswer(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          placeholder="Type your answer…"
+                          className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-secondary text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-buddy"
+                          autoFocus
+                        />
+                        <button type="submit" className="px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">
+                          Go
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
 
-      {/* Mascot button */}
-      <button
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="w-16 h-16 rounded-full overflow-hidden border-2 border-buddy buddy-float cursor-pointer hover:scale-110 transition-transform flex-shrink-0 shadow-lg pointer-events-auto"
-      >
-        <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
-      </button>
+                {phase === "feedback" && (
+                  <div className="flex justify-start fade-up">
+                    <div className={`max-w-[90%] px-3 py-2 rounded-lg rounded-bl-none text-sm ${
+                      isCorrect ? "bg-green-500/15 text-green-300" : "bg-red-500/15 text-red-300"
+                    }`}>
+                      <div className="flex items-center gap-1 font-semibold mb-0.5">
+                        <span>{isCorrect ? "✓" : "✗"}</span>
+                        {isCorrect ? "Correct!" : "Not quite!"}
+                      </div>
+                      <p className="text-xs leading-relaxed opacity-90">
+                        {isCorrect ? question.reinforcement : question.correction}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={scrollAnchorRef} />
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+
+        {/* Mascot button */}
+        <button
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="w-16 h-16 rounded-full overflow-hidden border-2 border-buddy buddy-float cursor-pointer hover:scale-110 transition-transform flex-shrink-0 shadow-lg pointer-events-auto"
+        >
+          <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
+        </button>
+      </div>
     </div>
   );
 }
