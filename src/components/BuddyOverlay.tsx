@@ -8,14 +8,17 @@ const MASCOT_VIDEO = "/mascot.mp4";
 // Float waypoints along screen edges (percentage-based)
 const WAYPOINTS = [
   { x: 85, y: 75 }, // bottom-right (start)
-  { x: 85, y: 20 }, // top-right
-  { x: 5, y: 15 },  // top-left
-  { x: 5, y: 70 },  // bottom-left
-  { x: 40, y: 80 }, // bottom-center
+  { x: 80, y: 25 }, // top-right
+  { x: 15, y: 20 }, // top-left
+  { x: 15, y: 65 }, // bottom-left
+  { x: 45, y: 72 }, // bottom-center
   { x: 85, y: 75 }, // back to start
 ];
 
-const FLOAT_STEP_MS = 8000; // time per waypoint
+// Safe position when question dialog is open (keeps the ~320px dialog within bounds)
+const SAFE_POS = { x: 75, y: 55 };
+
+const FLOAT_STEP_MS = 14000; // time per waypoint (slow, gentle drift)
 
 interface BuddyOverlayProps {
   question: Question | null;
@@ -68,12 +71,13 @@ export default function BuddyOverlay({
     floatPausedRef.current = isOpen;
   }, [isOpen]);
 
-  // When a new question arrives, open dialog and enter question phase
+  // When a new question arrives, open dialog, enter question phase, and move to safe zone
   useEffect(() => {
     if (question && enabled) {
       setPhase("question");
       setUserAnswer("");
       setIsOpen(true);
+      setPos(SAFE_POS);
     } else if (!question) {
       if (phase !== "feedback") {
         setPhase("idle");
@@ -98,6 +102,7 @@ export default function BuddyOverlay({
       dismissTimerRef.current = setTimeout(() => {
         setIsOpen(false);
         setPhase("idle");
+        setPos(WAYPOINTS[waypointIdxRef.current]);
         onDismiss();
       }, 3500);
     },
@@ -108,6 +113,8 @@ export default function BuddyOverlay({
     clearTimeout(dismissTimerRef.current);
     setIsOpen(false);
     setPhase("idle");
+    // Resume floating from current waypoint
+    setPos(WAYPOINTS[waypointIdxRef.current]);
     onDismiss();
   }, [onDismiss]);
 
@@ -121,10 +128,12 @@ export default function BuddyOverlay({
     <div
       className="absolute z-30 flex flex-col items-end gap-2 pointer-events-none"
       style={{
-        left: `${pos.x}%`,
-        top: `${pos.y}%`,
+        left: `clamp(10%, ${pos.x}%, 90%)`,
+        top: `clamp(5%, ${pos.y}%, 85%)`,
         transform: "translate(-50%, -50%)",
-        transition: `left ${FLOAT_STEP_MS}ms cubic-bezier(0.4, 0, 0.2, 1), top ${FLOAT_STEP_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+        transition: isOpen
+          ? "left 600ms cubic-bezier(0.25, 0.1, 0.25, 1), top 600ms cubic-bezier(0.25, 0.1, 0.25, 1)"
+          : `left ${FLOAT_STEP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1), top ${FLOAT_STEP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`,
       }}
     >
       {/* Dialog panel */}

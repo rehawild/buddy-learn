@@ -1,11 +1,19 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { RotateCcw, Home } from "lucide-react";
+import { RotateCcw, Home, Clock, Brain, MessageCircle, Sparkles } from "lucide-react";
+
+interface EngagementData {
+  avgResponseTimeMs: number;
+  attentionScore: number;
+  buddyInteractions: number;
+  reactionsCount: number;
+}
 
 interface RecapState {
   lessonTitle: string;
   correct: number;
   total: number;
   concepts: string[];
+  engagement?: EngagementData;
 }
 
 export default function Recap() {
@@ -14,13 +22,21 @@ export default function Recap() {
 
   const data = state ?? { lessonTitle: "Demo Lesson", correct: 0, total: 0, concepts: [] };
   const accuracy = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+  const engagement = data.engagement;
+
+  const formatResponseTime = (ms: number) => {
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
       <div className="max-w-md w-full space-y-8 fade-up">
         <div className="text-center space-y-2">
           <span className="text-5xl">🎉</span>
-          <h1 className="text-3xl font-bold text-foreground">Lesson Complete!</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            {engagement ? "Session Complete!" : "Lesson Complete!"}
+          </h1>
           <p className="text-muted-foreground">{data.lessonTitle}</p>
         </div>
 
@@ -36,6 +52,55 @@ export default function Recap() {
             <div className="text-sm text-muted-foreground mt-1">Accuracy</div>
           </div>
         </div>
+
+        {engagement && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">
+                  {formatResponseTime(engagement.avgResponseTimeMs)}
+                </div>
+                <div className="text-xs text-muted-foreground">Avg Response</div>
+              </div>
+            </div>
+            <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Brain className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">
+                  {engagement.attentionScore}%
+                </div>
+                <div className="text-xs text-muted-foreground">Attention</div>
+              </div>
+            </div>
+            <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <MessageCircle className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">
+                  {engagement.buddyInteractions}
+                </div>
+                <div className="text-xs text-muted-foreground">Buddy Chats</div>
+              </div>
+            </div>
+            <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">
+                  {engagement.reactionsCount}
+                </div>
+                <div className="text-xs text-muted-foreground">Reactions</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {data.concepts.length > 0 && (
           <div className="bg-card border border-border rounded-xl p-5">

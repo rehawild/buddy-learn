@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, Eye, Users, Loader2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, Eye, Users, Loader2, MessageSquareText } from "lucide-react";
 import { useMediaStream } from "@/hooks/useMediaStream";
 import { lessons, type Question } from "@/data/lessons";
 import ParticipantTile from "@/components/ParticipantTile";
@@ -63,6 +63,7 @@ export default function MeetRoom() {
   const [sectionIdx, setSectionIdx] = useState(0);
   const [buddyEnabled, setBuddyEnabled] = useState(true);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("easy");
+  const [showTranscript, setShowTranscript] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number | null>(null);
   const [results, setResults] = useState({ correct: 0, total: 0, concepts: [] as string[] });
@@ -174,6 +175,77 @@ export default function MeetRoom() {
     userName,
     enabled: isViewer,
   });
+
+  // ── Session-ended state (students) ──
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const presenterSeenRef = useRef(false);
+
+  // ── Build enriched recap state ──
+  const buildRecapState = useCallback(() => {
+    const agg = engagementTracker.getAggregate();
+    const avgResponseTimeMs =
+      agg.questionsAnswered > 0
+        ? Math.round(agg.totalResponseTimeMs / agg.questionsAnswered)
+        : 0;
+    return {
+      lessonTitle: slideTitle,
+      correct: results.correct,
+      total: results.total,
+      concepts: results.concepts.slice(0, 3),
+      engagement: {
+        avgResponseTimeMs,
+        attentionScore: agg.attentionScore,
+        buddyInteractions: agg.buddyInteractions,
+        reactionsCount: agg.reactionsCount,
+      },
+    };
+  }, [engagementTracker, slideTitle, results]);
+
+  // ── Student: listen for session_ended broadcast ──
+  useEffect(() => {
+    if (!isViewer || !channel) return;
+
+    const handleSessionEnded = () => {
+      if (sessionEnded) return;
+      setSessionEnded(true);
+      engagementTracker.flush();
+      setTimeout(() => {
+        navigate("/recap", { state: buildRecapState() });
+      }, 2000);
+    };
+
+    channel.on("broadcast", { event: "session_ended" }, handleSessionEnded);
+    return () => {
+      channel.off("broadcast", { event: "session_ended" }, handleSessionEnded);
+    };
+  }, [isViewer, channel, sessionEnded, engagementTracker, navigate, buildRecapState]);
+
+  // ── Presence fallback: detect presenter leaving ──
+  useEffect(() => {
+    if (!isViewer || sessionEnded) return;
+
+    const hasPresenter = realtimeParticipants.some((p) => p.role === "presenter");
+
+    if (hasPresenter) {
+      presenterSeenRef.current = true;
+      return;
+    }
+
+    // Presenter was seen before but is now gone
+    if (!hasPresenter && presenterSeenRef.current) {
+      const timer = setTimeout(() => {
+        // Re-check: still no presenter?
+        if (!sessionEnded) {
+          setSessionEnded(true);
+          engagementTracker.flush();
+          setTimeout(() => {
+            navigate("/recap", { state: buildRecapState() });
+          }, 2000);
+        }
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isViewer, realtimeParticipants, sessionEnded, engagementTracker, navigate, buildRecapState]);
 
   // Viewer: sync state from presenter
   useEffect(() => {
@@ -339,8 +411,14 @@ export default function MeetRoom() {
     // Flush engagement data before leaving
     await engagementTracker.flush();
 
-    // If presenter, mark session as ended in Supabase
+    // If presenter, broadcast session_ended to all students, then update DB
     if (!isViewer && roomCode) {
+      channel?.send({
+        type: "broadcast",
+        event: "session_ended",
+        payload: {},
+      });
+
       await supabase
         .from("sessions")
         .update({ status: "ended", ended_at: new Date().toISOString() })
@@ -348,7 +426,7 @@ export default function MeetRoom() {
     }
 
     if (presenting && results.total > 0) {
-      navigate("/recap", { state: { lessonTitle: slideTitle, ...results, concepts: results.concepts.slice(0, 3) } });
+      navigate("/recap", { state: buildRecapState() });
     } else {
       navigate("/");
     }
@@ -585,17 +663,32 @@ export default function MeetRoom() {
                     ) : null}
                   </div>
 
-                  {/* Live transcript */}
+                  {/* Live transcript (toggle) */}
                   {questionBank && isListening && (
-                    <div className="px-3 py-2 rounded-lg border border-border bg-secondary/30 text-xs">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                        <span className="font-medium text-muted-foreground">Live transcript</span>
-                      </div>
-                      <p className="text-foreground/70 italic truncate">
-                        {currentTranscript || "Speak to see your words here..."}
-                      </p>
-                    </div>
+                    <>
+                      <button
+                        onClick={() => setShowTranscript((p) => !p)}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-medium transition-colors ${
+                          showTranscript
+                            ? "bg-primary/15 text-primary border-primary/30"
+                            : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+                        }`}
+                      >
+                        <MessageSquareText className="w-3 h-3" />
+                        {showTranscript ? "Hide transcript" : "Show transcript"}
+                      </button>
+                      {showTranscript && (
+                        <div className="px-3 py-2 rounded-lg border border-border bg-secondary/30 text-xs">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            <span className="font-medium text-muted-foreground">Live transcript</span>
+                          </div>
+                          <p className="text-foreground/70 italic truncate">
+                            {currentTranscript || "Speak to see your words here..."}
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -674,8 +767,8 @@ export default function MeetRoom() {
                       </>
                     )}
 
-                    {/* Live transcript subtitle bar */}
-                    {transcriptLines.length > 0 && (
+                    {/* Live transcript subtitle bar (toggle-controlled) */}
+                    {showTranscript && transcriptLines.length > 0 && (
                       <div className="absolute bottom-16 left-1/2 -translate-x-1/2 max-w-[80%] z-20">
                         <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-center">
                           {transcriptLines.slice(-2).map((line, i) => (
@@ -791,6 +884,16 @@ export default function MeetRoom() {
           lessonIcon={lesson.icon}
           theme={lesson.theme || "default"}
         />
+      )}
+
+      {/* Session ended overlay (students) */}
+      {sessionEnded && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/90 backdrop-blur-sm">
+          <span className="text-5xl mb-4">👋</span>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Session Ended</h2>
+          <p className="text-muted-foreground">Redirecting to your recap...</p>
+          <Loader2 className="w-6 h-6 animate-spin text-primary mt-4" />
+        </div>
       )}
     </div>
   );

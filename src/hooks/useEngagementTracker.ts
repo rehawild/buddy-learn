@@ -17,11 +17,23 @@ interface UseEngagementTrackerParams {
   enabled: boolean; // only true for students
 }
 
+export interface EngagementAggregate {
+  questionsAnswered: number;
+  correctAnswers: number;
+  totalResponseTimeMs: number;
+  reactionsCount: number;
+  buddyInteractions: number;
+  tabSwitchCount: number;
+  idleCount: number;
+  attentionScore: number;
+}
+
 interface EngagementTracker {
   recordQuestionResponse: (correct: boolean, responseTimeMs: number, slideIndex: number) => void;
   recordReaction: (emoji: string) => void;
   recordBuddyChat: () => void;
   flush: () => Promise<void>;
+  getAggregate: () => EngagementAggregate;
 }
 
 // ── Constants ──
@@ -268,5 +280,9 @@ export function useEngagementTracker({
     queueEvent("buddy_chat", { message_count: 1 });
   }, [queueEvent]);
 
-  return { recordQuestionResponse, recordReaction, recordBuddyChat, flush };
+  const getAggregate = useCallback((): EngagementAggregate => {
+    return { ...aggregateRef.current };
+  }, []);
+
+  return { recordQuestionResponse, recordReaction, recordBuddyChat, flush, getAggregate };
 }

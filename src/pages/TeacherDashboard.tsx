@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,6 +35,13 @@ export default function TeacherDashboard() {
       setSearchParams({ session: id });
     }
   };
+
+  // Default to the latest session when sessions load and none is selected
+  useEffect(() => {
+    if (!sessionsLoading && sessions.length > 0 && !searchParams.get("session")) {
+      setSearchParams({ session: sessions[0].id });
+    }
+  }, [sessionsLoading, sessions, searchParams, setSearchParams]);
 
   // Real engagement data
   const { students: realStudents, timeline: realTimeline, difficultyBreakdown: realDifficulty, reactions: realReactions, questionStats, loading: engagementLoading } =
