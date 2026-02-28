@@ -361,10 +361,16 @@ export default function MeetRoom() {
 
   const handleAnswer = useCallback((correct: boolean) => {
     const responseTimeMs = Date.now() - answerTimestampRef.current;
+
+    // Derive concept label: AI questions carry highlight/topic; demo lessons use section title
+    const conceptLabel = hasUploadedSlides
+      ? (aiActiveQuestion?.topic || aiActiveQuestion?.highlight || "")
+      : (section?.title || "");
+
     setResults((prev) => ({
       correct: prev.correct + (correct ? 1 : 0),
       total: prev.total + 1,
-      concepts: [...new Set([...prev.concepts, section?.title || ""])].slice(-5),
+      concepts: [...new Set([...prev.concepts, conceptLabel])].filter(Boolean).slice(-5),
     }));
 
     // Update buddy mood phase
