@@ -23,7 +23,7 @@ export async function parsePDF(file: File): Promise<ParsedSlide[]> {
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d")!;
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
 
     const textContent = await page.getTextContent();
     const text = textContent.items.map((item: any) => item.str).join(" ");

@@ -253,7 +253,7 @@ export default function MeetRoom() {
 
     channel.on("broadcast", { event: "session_ended" }, handleSessionEnded);
     return () => {
-      channel.off("broadcast", { event: "session_ended" }, handleSessionEnded);
+      // Supabase JS v2 doesn't have .off(); cleanup happens on channel.unsubscribe()
     };
   }, [isViewer, channel, sessionEnded, engagementTracker, navigate, buildRecapState]);
 

@@ -199,7 +199,7 @@ Generate 1-3 questions about concepts the teacher emphasized verbally that go be
   return { questions };
 }
 
-const STUDENT_ASSESSMENT_SYSTEM = `You are StudyBuddy's teacher assistant. Given a student's engagement statistics from a lesson session, generate a brief 1-2 sentence assessment of their participation and learning.
+const STUDENT_ASSESSMENT_SYSTEM = `You are Catchy's teacher assistant. Given a student's engagement statistics from a lesson session, generate a brief 1-2 sentence assessment of their participation and learning.
 
 Rules:
 - Be constructive and specific — mention what went well AND areas for improvement.

@@ -112,7 +112,9 @@ export function useEngagementTracker({
     // Drain the event queue
     const events = eventQueueRef.current.splice(0);
     if (events.length > 0) {
-      await supabase.from("engagement_events").insert(events);
+      await supabase.from("engagement_events").insert(
+        events.map((e) => ({ ...e, payload: e.payload as unknown as import("@/integrations/supabase/types").Json }))
+      );
     }
 
     // Upsert aggregate
