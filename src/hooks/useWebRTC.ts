@@ -32,10 +32,16 @@ const ICE_CONFIG: RTCConfiguration = {
   ],
 };
 
+/** Retry delay for peers that fail to connect (ms) */
+const RETRY_DELAY = 3000;
+
 export function useWebRTC({ localStream, channel, localPeerId, participants, enabled }: UseWebRTCOptions) {
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const iceCandidateBuffer = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  /** Guards concurrent offer creation per peer — prevents onnegotiationneeded + explicit initiateOffer race */
+  const makingOfferRef = useRef<Set<string>>(new Set());
+  const retryTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const channelRef = useRef(channel);
   const localStreamRef = useRef(localStream);
   const localPeerIdRef = useRef(localPeerId);
@@ -61,13 +67,24 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     if (buf && buf.length > 0) {
       console.log(`[WebRTC] Flushing ${buf.length} buffered ICE candidates for ${remotePeerId.slice(0, 8)}`);
       for (const c of buf) {
-        await pc.addIceCandidate(new RTCIceCandidate(c));
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(c));
+        } catch (err) {
+          console.warn("[WebRTC] Failed to add buffered ICE candidate:", err);
+        }
       }
       iceCandidateBuffer.current.delete(remotePeerId);
     }
   }, []);
 
   const initiateOffer = useCallback((pc: RTCPeerConnection, remotePeerId: string) => {
+    // Prevent concurrent offers for the same peer (race between onnegotiationneeded and explicit calls)
+    if (makingOfferRef.current.has(remotePeerId)) {
+      console.log(`[WebRTC] Skipping duplicate offer for ${remotePeerId.slice(0, 8)} (already making one)`);
+      return;
+    }
+    makingOfferRef.current.add(remotePeerId);
+
     console.log(`[WebRTC] Creating offer for ${remotePeerId.slice(0, 8)}`);
     pc.createOffer()
       .then((offer) => pc.setLocalDescription(offer).then(() => offer))
@@ -79,7 +96,8 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
           payload: { from: localPeerIdRef.current, to: remotePeerId, sdp: offer },
         });
       })
-      .catch((err) => console.warn("[WebRTC] Offer error:", err));
+      .catch((err) => console.warn("[WebRTC] Offer error:", err))
+      .finally(() => makingOfferRef.current.delete(remotePeerId));
   }, []);
 
   const createPC = useCallback((remotePeerId: string): RTCPeerConnection => {
@@ -114,7 +132,8 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       }
     };
 
-    // Handle renegotiation — only the initiating side (lower ID) sends offers to prevent glare
+    // Handle renegotiation — only the initiating side (lower ID) sends offers to prevent glare.
+    // The makingOffer guard in initiateOffer prevents double-firing with explicit calls.
     pc.onnegotiationneeded = () => {
       if (pc.signalingState === "stable" && localPeerIdRef.current < remotePeerId) {
         initiateOffer(pc, remotePeerId);
@@ -123,7 +142,11 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
 
     pc.onconnectionstatechange = () => {
       console.log(`[WebRTC] Connection state (${remotePeerId.slice(0, 8)}): ${pc.connectionState}`);
-      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+      if (pc.connectionState === "failed") {
+        // Schedule a retry instead of immediately giving up
+        scheduleRetry(remotePeerId);
+      }
+      if (pc.connectionState === "closed") {
         closePC(remotePeerId);
       }
     };
@@ -143,9 +166,42 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       pc.close();
       pcsRef.current.delete(remotePeerId);
       iceCandidateBuffer.current.delete(remotePeerId);
+      makingOfferRef.current.delete(remotePeerId);
       updateStreams(remotePeerId, null);
     }
   }, [updateStreams]);
+
+  /** Tear down a failed connection and re-initiate after a delay */
+  const scheduleRetry = useCallback((remotePeerId: string) => {
+    // Clear any existing retry timer
+    const existing = retryTimers.current.get(remotePeerId);
+    if (existing) clearTimeout(existing);
+
+    console.log(`[WebRTC] Scheduling retry for ${remotePeerId.slice(0, 8)} in ${RETRY_DELAY}ms`);
+
+    // Close the failed PC
+    closePC(remotePeerId);
+
+    const timer = setTimeout(() => {
+      retryTimers.current.delete(remotePeerId);
+      if (!channelRef.current || !localStreamRef.current) return;
+
+      console.log(`[WebRTC] Retrying connection to ${remotePeerId.slice(0, 8)}`);
+      if (localPeerIdRef.current < remotePeerId) {
+        const pc = createPC(remotePeerId);
+        initiateOffer(pc, remotePeerId);
+      } else {
+        // We're the responding side — nudge the remote peer to re-offer
+        channelRef.current.send({
+          type: "broadcast",
+          event: "peer_ready",
+          payload: { from: localPeerIdRef.current },
+        });
+      }
+    }, RETRY_DELAY);
+
+    retryTimers.current.set(remotePeerId, timer);
+  }, [closePC, createPC, initiateOffer]);
 
   // Register signaling listeners on channel
   useEffect(() => {
@@ -164,7 +220,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       if (pc && pc.signalingState !== "stable") {
         pc.close();
         pcsRef.current.delete(from);
-        iceCandidateBuffer.current.delete(from);
+        // Keep ICE buffer — candidates for this peer are still valid
         pc = undefined;
       }
       if (!pc) {
@@ -213,16 +269,21 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       if (to !== localPeerId) return;
 
       const pc = pcsRef.current.get(from);
-      if (!pc) return;
 
-      if (pc.remoteDescription) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      if (pc && pc.remoteDescription) {
+        // PC exists and remote description is set — apply immediately
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.warn(`[WebRTC] Failed to add ICE candidate from ${from.slice(0, 8)}:`, err);
+        }
       } else {
-        // Buffer until remoteDescription is set
+        // Buffer: either PC doesn't exist yet or remoteDescription not set.
+        // Candidates will be flushed after setRemoteDescription in handleOffer/handleAnswer.
         const buf = iceCandidateBuffer.current.get(from) || [];
         buf.push(candidate);
         iceCandidateBuffer.current.set(from, buf);
-        console.log(`[WebRTC] Buffered ICE candidate from ${from.slice(0, 8)} (${buf.length} total)`);
+        console.log(`[WebRTC] Buffered ICE candidate from ${from.slice(0, 8)} (${buf.length} total, pc=${pc ? "exists" : "none"})`);
       }
     };
 
@@ -242,8 +303,8 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
             const pc = createPC(from);
             initiateOffer(pc, from);
           }
-        } else if (existingPC.signalingState === "stable") {
-          // Peer got their stream — renegotiate to exchange updated media
+        } else if (existingPC.signalingState === "stable" && existingPC.connectionState !== "connected") {
+          // Peer got their stream and we're not connected yet — renegotiate
           initiateOffer(existingPC, from);
         }
       } else {
@@ -335,7 +396,7 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
     }
   }, [localStream, localPeerId, channel]);
 
-  // Cleanup all connections on unmount
+  // Cleanup all connections and timers on unmount
   useEffect(() => {
     return () => {
       console.log("[WebRTC] Cleanup: closing all peer connections");
@@ -344,6 +405,11 @@ export function useWebRTC({ localStream, channel, localPeerId, participants, ena
       }
       pcsRef.current.clear();
       iceCandidateBuffer.current.clear();
+      makingOfferRef.current.clear();
+      for (const timer of retryTimers.current.values()) {
+        clearTimeout(timer);
+      }
+      retryTimers.current.clear();
     };
   }, []);
 
