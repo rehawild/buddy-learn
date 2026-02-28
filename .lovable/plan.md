@@ -1,32 +1,32 @@
-## Plan: Full Google Meet-Style Presentation System
 
-### ✅ Completed
-- 16:9 slide renderer with 4 layouts (title, content, two-column, quote)
-- Slide thumbnail sidebar with lesson switcher
-- Slide progress bar and navigation controls
-- Speaker notes panel (collapsible)
-- Fullscreen mode with keyboard navigation
-- Real-time sync via Supabase Broadcast (presenter/viewer roles)
-- Real-time chat sidebar (broadcast)
-- Room creation and join flow
-- Buddy overlay with questions
-- **Slide transition animations** (fade-slide CSS on key change)
-- **Per-lesson slide themes** (default, dark, gradient, warm, ocean)
-- **4 lessons** (Photosynthesis 6 slides, Renaissance 6 slides, Gravity 6 slides, French Revolution 6 slides)
-- **Emoji reactions** via Broadcast (👍🔥❓👏😂💡 with floating animation)
-- **Real Presence participants** in filmstrip and People sidebar
-- **Phase 1: Database & Storage** — presentations, presentation_slides, sessions, session_engagement tables + storage buckets (presentations, slide-images, avatars)
-- **Phase 2: Profile Page** — /profile with avatar upload, display name editing, role badge, session history
-- **Phase 4: Presentation Upload** — Teacher upload PDF/PPTX on MeetHome, create session in Supabase
-- **Phase 5: Role-Differentiated Meeting** — Auth-derived roles (teacher=presenter, student=viewer), role-based MeetHome/Lobby/Room
-- **Phase 6: Real Camera & Mic** — getUserMedia in lobby with live video preview and toggle controls
-- **Teacher Join Restriction** — Teachers can only present their own sessions (UI + server-side enforcement in lobby)
-- **Client-side PDF/PPTX Parsing** — pdfjs-dist for PDF page rendering, JSZip for PPTX slide extraction, upload slide images to Supabase
-- **Uploaded Slides in MeetRoom** — Fetch presentation_slides from Supabase, render as images with thumbnail sidebar
 
-### Remaining (nice-to-haves)
-- Phase 3: Dashboard improvements (real Supabase queries, session picker, presentations list)
-- Save engagement data on session end
-- Image/image-text slide layout
-- Presenter laser pointer cursor broadcast
-- Recording / export to PDF
+# Rebrand to "Catchy" + New Mascot + Fix Build Errors
+
+## 1. Copy mascot image to project
+- Copy `user-uploads://catchy.png` to `src/assets/catchy.png`
+- The old `src/assets/buddy-owl.png` can remain (no conflict) but all imports switch to `catchy.png`
+
+## 2. Rebrand all "Study Buddy" / "StudyBuddy" references to "Catchy"
+
+### Files to update:
+
+| File | Changes |
+|------|---------|
+| `index.html` | Title → "Catchy", meta descriptions → "Catchy — Real-time classroom engagement" |
+| `src/pages/LandingPage.tsx` | Import `catchy.png`, replace all "Study Buddy" text with "Catchy", update alt texts, footer copyright |
+| `src/pages/MeetHome.tsx` | Import `catchy.png`, "With Study Buddy." → "With Catchy.", alt texts |
+| `src/pages/MeetLobby.tsx` | Import `catchy.png`, "Study Buddy will be active" → "Catchy will be active" |
+| `src/components/BuddyOverlay.tsx` | Remove `MASCOT_VIDEO`, import `catchy.png`, replace `<video>` tags with `<img>` tags, "Study Buddy" → "Catchy" |
+| `src/components/BuddyChatDialog.tsx` | Remove `MASCOT_VIDEO`, import `catchy.png`, replace `<video>` with `<img>`, "Ask Buddy" → "Ask Catchy" |
+| `supabase/functions/buddy-ai/index.ts` | "StudyBuddy" → "Catchy" in all system prompts |
+
+## 3. Fix build errors
+
+| File | Error | Fix |
+|------|-------|-----|
+| `src/hooks/useEngagementTracker.ts:115` | `Record<string, unknown>` not assignable to `Json` | Cast payload `as Json` |
+| `src/hooks/useLiveTranscript.ts:145` | `.off()` doesn't exist on `RealtimeChannel` | Use `channel.unsubscribe()` in cleanup, or remove the `.off()` call (Supabase JS v2 doesn't have `.off()`) |
+| `src/hooks/useWebRTC.ts:190-193` | Same `.off()` issue | Same fix — remove `.off()` calls, unsubscribe channel instead |
+| `src/pages/MeetRoom.tsx:256` | Same `.off()` issue | Same fix |
+| `src/lib/parsePresentation.ts:26` | Missing `canvas` property in render params | Add `canvas` property to the render call |
+
