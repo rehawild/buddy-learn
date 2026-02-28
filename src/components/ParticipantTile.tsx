@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MicOff, Hand, Pin, GraduationCap } from "lucide-react";
+import { MicOff, Hand, GraduationCap } from "lucide-react";
 import type { Participant } from "@/data/participants";
 
 interface ParticipantTileProps {
@@ -84,12 +84,6 @@ export default function ParticipantTile({ participant, size = "large", speaking 
         </div>
       </div>
 
-      {/* Pin icon for large tiles */}
-      {size === "large" && (
-        <button className="absolute top-2 right-2 p-1 rounded-full bg-black/40 text-muted-foreground hover:text-foreground opacity-0 hover:opacity-100 transition-opacity">
-          <Pin className="w-3 h-3" />
-        </button>
-      )}
     </div>
   );
 }

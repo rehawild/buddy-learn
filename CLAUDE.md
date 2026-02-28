@@ -139,6 +139,3 @@ App.tsx (QueryClient + TooltipProvider + AuthProvider + Router)
 
 ### Known issues:
 - `pdfjs-dist` is imported in `parsePresentation.ts` but not in `package.json` (runtime failure for PDF upload)
-- `Presentation.tsx`, `Landing.tsx`, `Index.tsx` exist but are not routed in App.tsx
-- `NavLink.tsx` and `ParticipantTile.tsx` are defined but unused
-- `App.css` is not imported anywhere
