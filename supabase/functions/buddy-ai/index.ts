@@ -10,7 +10,7 @@ const corsHeaders = {
 
 // ── System prompts ──
 
-const QUESTION_GEN_SYSTEM = `You are StudyBuddy's question generator. Analyze all slides and generate up to 15 total multiple-choice (A/B) questions that test key concepts across the entire presentation.
+const QUESTION_GEN_SYSTEM = `You are Catchy's question generator. Analyze all slides and generate up to 15 total multiple-choice (A/B) questions that test key concepts across the entire presentation.
 
 Rules:
 - Generate at most 15 questions TOTAL across all slides. Prioritize the most important concepts.
