@@ -38,7 +38,25 @@ export async function parsePDF(file: File): Promise<ParsedSlide[]> {
   return slides;
 }
 
+const GOTENBERG_URL = import.meta.env.VITE_GOTENBERG_URL || "";
+
+async function convertPptxToPdf(file: File): Promise<File> {
+  if (!GOTENBERG_URL) {
+    throw new Error("PPTX conversion service not configured");
+  }
+  const form = new FormData();
+  form.append("files", file, file.name);
+  const res = await fetch(`${GOTENBERG_URL}/forms/libreoffice/convert`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error("PPTX conversion failed");
+  const blob = await res.blob();
+  return new File([blob], file.name.replace(/\.pptx?$/i, ".pdf"), { type: "application/pdf" });
+}
+
 export async function parsePPTX(file: File): Promise<ParsedSlide[]> {
+  // 1. Extract text content from PPTX XML (for AI question generation)
   const zip = await JSZip.loadAsync(file);
   const slideFiles = Object.keys(zip.files)
     .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
@@ -47,92 +65,25 @@ export async function parsePPTX(file: File): Promise<ParsedSlide[]> {
       const numB = parseInt(b.match(/slide(\d+)/)?.[1] || "0");
       return numA - numB;
     });
+  const textBySlide: string[] = [];
+  for (const slideFile of slideFiles) {
+    const xml = await zip.files[slideFile].async("string");
+    const matches = xml.match(/<a:t>([^<]*)<\/a:t>/g);
+    textBySlide.push(matches ? matches.map(m => m.replace(/<\/?a:t>/g, "")).join(" ") : "");
+  }
 
-  const slides: ParsedSlide[] = [];
+  // 2. Convert PPTX → PDF via Gotenberg, then render with parsePDF
+  const pdfFile = await convertPptxToPdf(file);
+  const slides = await parsePDF(pdfFile);
 
-  for (let i = 0; i < slideFiles.length; i++) {
-    const xmlContent = await zip.files[slideFiles[i]].async("string");
-    const textMatches = xmlContent.match(/<a:t>([^<]*)<\/a:t>/g);
-    const text = textMatches
-      ? textMatches.map((m) => m.replace(/<\/?a:t>/g, "")).join(" ")
-      : "";
-
-    // Try to extract embedded images from the slide's relationships
-    const slideNum = i + 1;
-    const relsPath = `ppt/slides/_rels/slide${slideNum}.xml.rels`;
-    let slideImage: Blob | null = null;
-
-    if (zip.files[relsPath]) {
-      const relsXml = await zip.files[relsPath].async("string");
-      const imageRels = relsXml.match(/Target="\.\.\/media\/[^"]+"/g);
-      if (imageRels && imageRels.length > 0) {
-        const firstImage = imageRels[0].match(/Target="\.\.\/(.+?)"/)?.[1];
-        if (firstImage && zip.files[`ppt/${firstImage}`]) {
-          const imgData = await zip.files[`ppt/${firstImage}`].async("blob");
-          // Use this image as slide background if it's large enough
-          if (imgData.size > 10000) {
-            slideImage = imgData;
-          }
-        }
-      }
+  // 3. Merge extracted text (richer than pdf.js text extraction for PPTX content)
+  for (let i = 0; i < slides.length; i++) {
+    if (i < textBySlide.length && textBySlide[i]) {
+      slides[i].textContent = textBySlide[i];
     }
-
-    // Generate canvas-based slide image
-    const canvas = document.createElement("canvas");
-    canvas.width = 1920;
-    canvas.height = 1080;
-    const ctx = canvas.getContext("2d")!;
-
-    if (slideImage) {
-      // Draw embedded image
-      const img = await createImageBitmap(slideImage);
-      ctx.drawImage(img, 0, 0, 1920, 1080);
-    } else {
-      // Render text-based slide
-      ctx.fillStyle = "#1e2028";
-      ctx.fillRect(0, 0, 1920, 1080);
-
-      // Title area
-      ctx.fillStyle = "#e5e7eb";
-      ctx.font = "bold 48px sans-serif";
-      const lines = wrapText(ctx, text, 1720, 48);
-      let y = 200;
-      for (const line of lines.slice(0, 15)) {
-        ctx.fillText(line, 100, y);
-        y += 64;
-      }
-
-      // Slide number
-      ctx.fillStyle = "#6b7280";
-      ctx.font = "28px sans-serif";
-      ctx.fillText(`Slide ${slideNum}`, 48, 1040);
-    }
-
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), "image/png")
-    );
-
-    slides.push({ slideNumber: slideNum, imageBlob: blob, textContent: text });
   }
 
   return slides;
-}
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, fontSize: number): string[] {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let line = "";
-  for (const word of words) {
-    const testLine = line + word + " ";
-    if (ctx.measureText(testLine).width > maxWidth && line) {
-      lines.push(line.trim());
-      line = word + " ";
-    } else {
-      line = testLine;
-    }
-  }
-  if (line.trim()) lines.push(line.trim());
-  return lines;
 }
 
 export async function parsePresentation(file: File): Promise<ParsedSlide[]> {

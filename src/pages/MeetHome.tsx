@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { parsePresentation, uploadSlides } from "@/lib/parsePresentation";
 
-type UploadPhase = "idle" | "uploading" | "parsing" | "processing" | "done";
+type UploadPhase = "idle" | "uploading" | "converting" | "parsing" | "processing" | "done";
 
 export default function MeetHome() {
   const navigate = useNavigate();
@@ -54,7 +54,8 @@ export default function MeetHome() {
       const presentationId = data.id;
       setUploadedFile({ name: title, id: presentationId });
 
-      setUploadPhase("parsing");
+      const isPptx = /\.pptx?$/i.test(file.name);
+      setUploadPhase(isPptx ? "converting" : "parsing");
       const slides = await parsePresentation(file);
 
       setUploadPhase("processing");
@@ -103,6 +104,7 @@ export default function MeetHome() {
   const phaseLabel: Record<UploadPhase, string> = {
     idle: "",
     uploading: "Uploading file…",
+    converting: "Converting presentation…",
     parsing: "Parsing slides…",
     processing: `Processing slide ${uploadProgress.current}/${uploadProgress.total}…`,
     done: "",

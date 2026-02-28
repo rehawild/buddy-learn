@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/gotenberg": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/gotenberg/, ""),
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
