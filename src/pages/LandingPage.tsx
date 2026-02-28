@@ -69,7 +69,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-3xl mx-auto text-center space-y-8">
-          <div className="w-28 h-28 mx-auto rounded-2xl overflow-hidden buddy-glow">
+          <div className="w-44 h-44 mx-auto rounded-2xl overflow-hidden buddy-glow">
             <img src="/hero-anim.gif" alt="Catchy mascot" className="w-full h-full object-cover" />
           </div>
 
