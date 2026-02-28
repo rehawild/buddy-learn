@@ -29,7 +29,7 @@ export interface EngagementAggregate {
 }
 
 interface EngagementTracker {
-  recordQuestionResponse: (correct: boolean, responseTimeMs: number, slideIndex: number) => void;
+  recordQuestionResponse: (correct: boolean, responseTimeMs: number, slideIndex: number, difficulty?: string, questionText?: string) => void;
   recordReaction: (emoji: string) => void;
   recordBuddyChat: () => void;
   flush: () => Promise<void>;
@@ -256,7 +256,7 @@ export function useEngagementTracker({
   // ── Public actions ──
 
   const recordQuestionResponse = useCallback(
-    (correct: boolean, responseTimeMs: number, slideIndex: number) => {
+    (correct: boolean, responseTimeMs: number, slideIndex: number, difficulty?: string, questionText?: string) => {
       aggregateRef.current.questionsAnswered++;
       if (correct) aggregateRef.current.correctAnswers++;
       aggregateRef.current.totalResponseTimeMs += responseTimeMs;
@@ -265,6 +265,8 @@ export function useEngagementTracker({
         slide_index: slideIndex,
         correct,
         response_time_ms: responseTimeMs,
+        ...(difficulty && { difficulty }),
+        ...(questionText && { question_text: questionText }),
       });
     },
     [queueEvent],

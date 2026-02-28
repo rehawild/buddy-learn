@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 // ── Types ──
@@ -60,26 +60,18 @@ const EMOJI_LABELS: Record<string, string> = {
 
 // ── Hook ──
 
-export function useSessionEngagement(sessionId: string | null) {
+export function useSessionEngagement(sessionId: string | null, live = false) {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
   const [difficultyBreakdown, setDifficultyBreakdown] = useState<DifficultyBreakdown[]>([]);
   const [reactions, setReactions] = useState<ReactionSummary[]>([]);
   const [questionStats, setQuestionStats] = useState<QuestionDispatchStat[]>([]);
   const [loading, setLoading] = useState(false);
+  const initialFetchDone = useRef(false);
 
-  useEffect(() => {
-    if (!sessionId) {
-      setStudents([]);
-      setTimeline([]);
-      setDifficultyBreakdown([]);
-      setReactions([]);
-      setQuestionStats([]);
-      return;
-    }
-
-    const fetchData = async () => {
-      setLoading(true);
+  const fetchData = useCallback(async (isInitial: boolean) => {
+    if (!sessionId) return;
+    if (isInitial) setLoading(true);
 
       // Fetch all data in parallel
       const [engagementResult, eventsResult] = await Promise.all([
@@ -271,11 +263,30 @@ export function useSessionEngagement(sessionId: string | null) {
         }));
       setReactions(reactionSummary);
 
-      setLoading(false);
-    };
-
-    fetchData();
+      if (isInitial) setLoading(false);
   }, [sessionId]);
+
+  // Initial fetch + reset on session change
+  useEffect(() => {
+    initialFetchDone.current = false;
+    if (!sessionId) {
+      setStudents([]);
+      setTimeline([]);
+      setDifficultyBreakdown([]);
+      setReactions([]);
+      setQuestionStats([]);
+      return;
+    }
+    initialFetchDone.current = true;
+    fetchData(true);
+  }, [sessionId, fetchData]);
+
+  // Poll every 15s when live
+  useEffect(() => {
+    if (!live || !sessionId) return;
+    const interval = setInterval(() => fetchData(false), 15_000);
+    return () => clearInterval(interval);
+  }, [live, sessionId, fetchData]);
 
   return { students, timeline, difficultyBreakdown, reactions, questionStats, loading };
 }

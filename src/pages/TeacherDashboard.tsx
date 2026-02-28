@@ -44,8 +44,9 @@ export default function TeacherDashboard() {
   }, [sessionsLoading, sessions, searchParams, setSearchParams]);
 
   // Real engagement data
+  const isLive = selectedSession?.status === "active";
   const { students: realStudents, timeline: realTimeline, difficultyBreakdown: realDifficulty, reactions: realReactions, questionStats, loading: engagementLoading } =
-    useSessionEngagement(selectedSessionId || null);
+    useSessionEngagement(selectedSessionId || null, isLive);
 
   // Use real data when available, fall back to mock
   const hasRealData = selectedSessionId && realStudents.length > 0;

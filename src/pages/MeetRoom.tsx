@@ -367,7 +367,13 @@ export default function MeetRoom() {
     setBuddyPhaseInfo({ phase: "feedback", correct });
 
     // Track engagement
-    engagementTracker.recordQuestionResponse(correct, responseTimeMs, displayIdx);
+    engagementTracker.recordQuestionResponse(
+      correct,
+      responseTimeMs,
+      displayIdx,
+      effectiveQuestion?.difficulty,
+      effectiveQuestion?.question,
+    );
 
     // If student agent is active, send response back to coordinator
     if (isViewer && hasUploadedSlides && aiActiveQuestion) {
