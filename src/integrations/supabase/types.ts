@@ -16,28 +16,28 @@ export type Database = {
     Tables: {
       engagement_events: {
         Row: {
+          created_at: string
+          event_type: string
           id: string
+          payload: Json | null
           session_id: string
           student_id: string
-          event_type: string
-          payload: Json
-          created_at: string
         }
         Insert: {
+          created_at?: string
+          event_type: string
           id?: string
+          payload?: Json | null
           session_id: string
           student_id: string
-          event_type: string
-          payload?: Json
-          created_at?: string
         }
         Update: {
+          created_at?: string
+          event_type?: string
           id?: string
+          payload?: Json | null
           session_id?: string
           student_id?: string
-          event_type?: string
-          payload?: Json
-          created_at?: string
         }
         Relationships: [
           {
