@@ -6,6 +6,7 @@ import type {
   QuestionDispatchEvent,
   StudentResponseEvent,
   PreGeneratePayload,
+  PendingTranscriptQuestion,
 } from "@/types/agent";
 import type { Question } from "@/data/lessons";
 import type { UploadedSlide } from "@/hooks/useSessionSlides";
@@ -66,6 +67,7 @@ export function useCoordinatorAgent({
   const coveredSlidesRef = useRef<Set<number>>(new Set());
   const dispatchedQuestionsRef = useRef<Set<string>>(new Set()); // "slideIdx-qIdx"
   const [dispatchCount, setDispatchCount] = useState(0);
+  const [pendingTranscriptQuestions, setPendingTranscriptQuestions] = useState<PendingTranscriptQuestion[]>([]);
   const transcriptQuestionsSentRef = useRef<Set<number>>(new Set()); // slide indices already processed
   const lastTranscriptLenRef = useRef(0);
 
@@ -235,25 +237,17 @@ export function useCoordinatorAgent({
         const questions = data.questions as Question[];
         if (!questions || questions.length === 0) return;
 
-        // Dispatch transcript-based questions
-        for (const question of questions) {
-          const event: QuestionDispatchEvent = {
-            slideIndex: slideIdx,
-            question: { ...question, source: "transcript" },
-            dispatchedAt: new Date().toISOString(),
-          };
+        // Queue transcript-based questions for teacher approval
+        const pending: PendingTranscriptQuestion[] = questions.map((question) => ({
+          id: crypto.randomUUID(),
+          slideIndex: slideIdx,
+          question: { ...question, source: "transcript" as const },
+          generatedAt: new Date().toISOString(),
+          expiresAt: Date.now() + 30_000,
+        }));
 
-          channel.send({
-            type: "broadcast",
-            event: "buddy_question",
-            payload: event,
-          });
-
-          persistDispatchEvent(question, slideIdx, "transcript");
-          console.log("[Coordinator] Dispatched transcript question:", question.question);
-        }
-
-        setDispatchCount((c) => c + questions.length);
+        setPendingTranscriptQuestions((prev) => [...prev, ...pending]);
+        console.log("[Coordinator] Queued", pending.length, "transcript questions for approval");
       } catch (err) {
         console.warn("[Coordinator] Transcript question error:", err);
       }
@@ -409,6 +403,62 @@ export function useCoordinatorAgent({
     [],
   );
 
+  // ── 5e. Approve a pending transcript question ──
+
+  const approveTranscriptQuestion = useCallback(
+    (id: string) => {
+      setPendingTranscriptQuestions((prev) => {
+        const item = prev.find((p) => p.id === id);
+        if (!item || !channel) return prev;
+
+        const event: QuestionDispatchEvent = {
+          slideIndex: item.slideIndex,
+          question: item.question,
+          dispatchedAt: new Date().toISOString(),
+        };
+
+        channel.send({
+          type: "broadcast",
+          event: "buddy_question",
+          payload: event,
+        });
+
+        persistDispatchEvent(item.question, item.slideIndex, "transcript");
+        setDispatchCount((c) => c + 1);
+        console.log("[Coordinator] Approved transcript question:", item.question.question);
+
+        return prev.filter((p) => p.id !== id);
+      });
+    },
+    [channel, persistDispatchEvent],
+  );
+
+  // ── 5f. Dismiss a pending transcript question ──
+
+  const dismissTranscriptQuestion = useCallback((id: string) => {
+    setPendingTranscriptQuestions((prev) => prev.filter((p) => p.id !== id));
+    console.log("[Coordinator] Dismissed transcript question:", id);
+  }, []);
+
+  // ── 5g. Auto-expiry: remove questions past their expiresAt ──
+
+  useEffect(() => {
+    if (pendingTranscriptQuestions.length === 0) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setPendingTranscriptQuestions((prev) => {
+        const filtered = prev.filter((p) => p.expiresAt > now);
+        if (filtered.length < prev.length) {
+          console.log("[Coordinator] Auto-expired", prev.length - filtered.length, "transcript questions");
+        }
+        return filtered.length < prev.length ? filtered : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pendingTranscriptQuestions.length]);
+
   // ── 6. Agent factory: broadcast init to new students ──
 
   const broadcastAgentInit = useCallback(() => {
@@ -466,5 +516,8 @@ export function useCoordinatorAgent({
     dispatchSingleQuestion,
     isQuestionDispatched,
     dispatchCount,
+    pendingTranscriptQuestions,
+    approveTranscriptQuestion,
+    dismissTranscriptQuestion,
   };
 }

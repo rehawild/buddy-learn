@@ -36,6 +36,16 @@ export interface StudentResponseEvent {
   answeredAt: string;
 }
 
+// ── Pending transcript question (teacher approval gate) ──
+
+export interface PendingTranscriptQuestion {
+  id: string;              // crypto.randomUUID()
+  slideIndex: number;
+  question: Question;
+  generatedAt: string;
+  expiresAt: number;       // Date.now() + 30_000
+}
+
 // ── Edge function request/response envelopes ──
 
 export type AgentAction = "pre-generate" | "buddy-chat" | "transcript-questions" | "student-assessment";

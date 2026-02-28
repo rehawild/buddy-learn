@@ -14,6 +14,7 @@ import SlideProgress from "@/components/SlideProgress";
 import SpeakerNotes from "@/components/SpeakerNotes";
 import SlideGridOverlay from "@/components/SlideGridOverlay";
 import TeacherQuestionPanel from "@/components/TeacherQuestionPanel";
+import TranscriptApprovalQueue from "@/components/TranscriptApprovalQueue";
 import { useRealtimeRoom, type RoomState } from "@/hooks/useRealtimeRoom";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { useLiveTranscript } from "@/hooks/useLiveTranscript";
@@ -134,6 +135,9 @@ export default function MeetRoom() {
     dispatchSingleQuestion,
     isQuestionDispatched,
     dispatchCount,
+    pendingTranscriptQuestions,
+    approveTranscriptQuestion,
+    dismissTranscriptQuestion,
   } = useCoordinatorAgent({
     slides: uploadedSlides,
     channel,
@@ -765,6 +769,15 @@ export default function MeetRoom() {
                         totalSlides={totalSlides}
                         theme={lesson!.theme || "default"}
                         slideKey={`${lessonIdx}-${displayIdx}`}
+                      />
+                    )}
+
+                    {/* Transcript question approval queue (teacher only) */}
+                    {!isViewer && hasUploadedSlides && (
+                      <TranscriptApprovalQueue
+                        pendingQuestions={pendingTranscriptQuestions}
+                        onApprove={approveTranscriptQuestion}
+                        onDismiss={dismissTranscriptQuestion}
                       />
                     )}
 
