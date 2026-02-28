@@ -35,6 +35,7 @@ interface UseCoordinatorAgentParams {
   difficulty: "easy" | "medium" | "hard";
   currentSlideIndex: number;
   sessionId: string | null;
+  teacherId: string | null;
   enabled: boolean; // only true for teacher with uploaded slides
   /** Stable transcript text from useLiveTranscript */
   transcriptText?: string;
@@ -50,6 +51,7 @@ export function useCoordinatorAgent({
   difficulty,
   currentSlideIndex,
   sessionId,
+  teacherId,
   enabled,
   transcriptText = "",
   transcriptListening = false,
@@ -66,6 +68,60 @@ export function useCoordinatorAgent({
   const [dispatchCount, setDispatchCount] = useState(0);
   const transcriptQuestionsSentRef = useRef<Set<number>>(new Set()); // slide indices already processed
   const lastTranscriptLenRef = useRef(0);
+
+  // ── Persistence helpers (fire-and-forget) ──
+
+  const persistDispatchEvent = useCallback(
+    (question: Question, slideIndex: number, source: string) => {
+      if (!sessionId || !teacherId) return;
+      supabase
+        .from("engagement_events")
+        .insert({
+          session_id: sessionId,
+          student_id: teacherId, // teacher acts as actor for dispatches
+          event_type: "question_dispatch",
+          payload: {
+            slide_index: slideIndex,
+            question_text: question.question,
+            difficulty: question.difficulty,
+            correct_answer: question.answer,
+            options: question.options || null,
+            source,
+            dispatched_at: new Date().toISOString(),
+          },
+        })
+        .then(({ error }) => {
+          if (error) console.warn("[Coordinator] Failed to persist dispatch:", error.message);
+        });
+    },
+    [sessionId, teacherId],
+  );
+
+  const persistResponseEvent = useCallback(
+    (response: StudentResponseEvent) => {
+      if (!sessionId) return;
+      supabase
+        .from("engagement_events")
+        .insert({
+          session_id: sessionId,
+          student_id: response.studentId,
+          event_type: "coordinator_response",
+          payload: {
+            student_name: response.studentName,
+            slide_index: response.slideIndex,
+            question_text: response.questionText,
+            answer: response.answer,
+            correct: response.correct,
+            response_time_ms: response.responseTimeMs,
+            answered_at: response.answeredAt,
+          },
+        })
+        .then(({ error }) => {
+          if (error) console.warn("[Coordinator] Failed to persist response:", error.message);
+        });
+    },
+    [sessionId],
+  );
 
   // Keep refs in sync
   useEffect(() => {
@@ -193,6 +249,7 @@ export function useCoordinatorAgent({
             payload: event,
           });
 
+          persistDispatchEvent(question, slideIdx, "transcript");
           console.log("[Coordinator] Dispatched transcript question:", question.question);
         }
 
@@ -203,7 +260,7 @@ export function useCoordinatorAgent({
     };
 
     generateTranscriptQuestions();
-  }, [enabled, slides, channel, transcriptText, currentSlideIndex, lessonTitle, difficulty]);
+  }, [enabled, slides, channel, transcriptText, currentSlideIndex, lessonTitle, difficulty, persistDispatchEvent]);
 
   const checkCoverage = useCallback(
     (transcript: string) => {
@@ -268,6 +325,7 @@ export function useCoordinatorAgent({
           payload: event,
         });
 
+        persistDispatchEvent(question, slideBank.slideIndex, question.source || "slides");
         console.log(
           `[Coordinator] Dispatched question for slide ${slideBank.slideIndex}:`,
           question.question,
@@ -276,7 +334,7 @@ export function useCoordinatorAgent({
 
       if (dispatched > 0) setDispatchCount((c) => c + dispatched);
     },
-    [channel],
+    [channel, persistDispatchEvent],
   );
 
   // ── 5. Manual dispatch: teacher triggers questions for current slide ──
@@ -333,12 +391,13 @@ export function useCoordinatorAgent({
         payload: event,
       });
 
+      persistDispatchEvent(question, slideIndex, question.source || "slides");
       console.log(
         `[Coordinator] Dispatched single question for slide ${slideIndex}:`,
         question.question,
       );
     },
-    [channel],
+    [channel, persistDispatchEvent],
   );
 
   // ── 5d. Check if a question has been dispatched ──
@@ -385,13 +444,14 @@ export function useCoordinatorAgent({
         console.log("[Coordinator] Student response:", response.studentName, response.correct);
 
         setStudentResponses((prev) => [...prev, response]);
+        persistResponseEvent(response);
       },
     );
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [enabled, channel]);
+  }, [enabled, channel, persistResponseEvent]);
 
   return {
     questionBank,

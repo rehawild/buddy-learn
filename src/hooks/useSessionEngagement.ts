@@ -34,6 +34,21 @@ export interface ReactionSummary {
   count: number;
 }
 
+export interface QuestionDispatchStat {
+  questionText: string;
+  slideIndex: number;
+  difficulty: string;
+  source: string;
+  correctAnswer: string;
+  responses: {
+    studentName: string;
+    answer: string;
+    correct: boolean;
+    responseTimeMs: number;
+  }[];
+  accuracy: number; // 0-100
+}
+
 const EMOJI_LABELS: Record<string, string> = {
   "👍": "Thumbs Up",
   "🔥": "Fire",
@@ -50,6 +65,7 @@ export function useSessionEngagement(sessionId: string | null) {
   const [timeline, setTimeline] = useState<TimelinePoint[]>([]);
   const [difficultyBreakdown, setDifficultyBreakdown] = useState<DifficultyBreakdown[]>([]);
   const [reactions, setReactions] = useState<ReactionSummary[]>([]);
+  const [questionStats, setQuestionStats] = useState<QuestionDispatchStat[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -58,6 +74,7 @@ export function useSessionEngagement(sessionId: string | null) {
       setTimeline([]);
       setDifficultyBreakdown([]);
       setReactions([]);
+      setQuestionStats([]);
       return;
     }
 
@@ -140,18 +157,89 @@ export function useSessionEngagement(sessionId: string | null) {
         setTimeline([]);
       }
 
+      // ── Question stats (dispatch + response audit trail) ──
+      const dispatches = events.filter((e) => e.event_type === "question_dispatch");
+      const coordResponses = events.filter((e) => e.event_type === "coordinator_response");
+
+      // Build a map of dispatched questions keyed by question_text
+      const questionMap = new Map<string, QuestionDispatchStat>();
+      for (const evt of dispatches) {
+        const p = evt.payload as Record<string, unknown>;
+        const text = p.question_text as string;
+        if (!text || questionMap.has(text)) continue;
+        questionMap.set(text, {
+          questionText: text,
+          slideIndex: (p.slide_index as number) ?? 0,
+          difficulty: (p.difficulty as string) || "medium",
+          source: (p.source as string) || "slides",
+          correctAnswer: (p.correct_answer as string) || "",
+          responses: [],
+          accuracy: 0,
+        });
+      }
+
+      // Attach coordinator_response events to their questions
+      for (const evt of coordResponses) {
+        const p = evt.payload as Record<string, unknown>;
+        const text = p.question_text as string;
+        const stat = questionMap.get(text);
+        if (stat) {
+          stat.responses.push({
+            studentName: (p.student_name as string) || "Anonymous",
+            answer: (p.answer as string) || "",
+            correct: !!p.correct,
+            responseTimeMs: (p.response_time_ms as number) || 0,
+          });
+        }
+      }
+
+      // Compute per-question accuracy
+      for (const stat of questionMap.values()) {
+        if (stat.responses.length > 0) {
+          const correctCount = stat.responses.filter((r) => r.correct).length;
+          stat.accuracy = Math.round((correctCount / stat.responses.length) * 100);
+        }
+      }
+
+      // Sort hardest-first (lowest accuracy)
+      const sortedStats = Array.from(questionMap.values()).sort((a, b) => a.accuracy - b.accuracy);
+      setQuestionStats(sortedStats);
+
       // ── Difficulty breakdown ──
+      // Merge coordinator_response data with student question_response events for richer breakdown
       const questionResponses = events.filter((e) => e.event_type === "question_response");
       const diffMap = new Map<string, { total: number; correct: number }>();
+
+      // First add data from coordinator_response events (have real difficulty from dispatch)
+      for (const stat of questionMap.values()) {
+        for (const resp of stat.responses) {
+          const diff = stat.difficulty || "medium";
+          const existing = diffMap.get(diff) || { total: 0, correct: 0 };
+          existing.total++;
+          if (resp.correct) existing.correct++;
+          diffMap.set(diff, existing);
+        }
+      }
+
+      // Then add student self-reported question_response events (avoid double-counting)
+      const coordResponseTexts = new Set(coordResponses.map((e) => {
+        const p = e.payload as Record<string, unknown>;
+        return `${e.student_id}-${p.question_text}`;
+      }));
+
       for (const evt of questionResponses) {
         const payload = evt.payload as Record<string, unknown>;
-        // Default difficulty based on slide position if not available
+        // Skip if already counted via coordinator_response
+        const key = `${evt.student_id}-${payload.question_text}`;
+        if (coordResponseTexts.has(key)) continue;
+
         const diff = (payload.difficulty as string) || "medium";
         const existing = diffMap.get(diff) || { total: 0, correct: 0 };
         existing.total++;
         if (payload.correct) existing.correct++;
         diffMap.set(diff, existing);
       }
+
       // Ensure all three difficulties exist
       for (const d of ["easy", "medium", "hard"]) {
         if (!diffMap.has(d)) diffMap.set(d, { total: 0, correct: 0 });
@@ -189,5 +277,5 @@ export function useSessionEngagement(sessionId: string | null) {
     fetchData();
   }, [sessionId]);
 
-  return { students, timeline, difficultyBreakdown, reactions, loading };
+  return { students, timeline, difficultyBreakdown, reactions, questionStats, loading };
 }

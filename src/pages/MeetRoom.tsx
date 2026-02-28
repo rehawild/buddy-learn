@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, ChevronLeft, Eye, Users, Loader2 } from "lucide-react";
 import { useMediaStream } from "@/hooks/useMediaStream";
 import { lessons, type Question } from "@/data/lessons";
+import ParticipantTile from "@/components/ParticipantTile";
 import MeetSidebar from "@/components/MeetSidebar";
 import MeetBottomBar from "@/components/MeetBottomBar";
 import BuddyOverlay from "@/components/BuddyOverlay";
@@ -22,6 +23,15 @@ import { useCoordinatorAgent } from "@/hooks/useCoordinatorAgent";
 import { useStudentAgent } from "@/hooks/useStudentAgent";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { supabase } from "@/integrations/supabase/client";
+
+function stringToColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 55%, 45%)`;
+}
 
 export default function MeetRoom() {
   const navigate = useNavigate();
@@ -75,7 +85,7 @@ export default function MeetRoom() {
   const { isConnected, remoteState, participants: realtimeParticipants, broadcast, participantCount, channel, localPeerId, updatePresence } = useRealtimeRoom(roomCode, realtimeRole, userName);
 
   // WebRTC peer-to-peer video/audio
-  useWebRTC({
+  const { remoteStreams } = useWebRTC({
     localStream: stream,
     channel,
     localPeerId,
@@ -130,6 +140,7 @@ export default function MeetRoom() {
     difficulty,
     currentSlideIndex: sectionIdx,
     sessionId,
+    teacherId: user?.id || null,
     enabled: !isViewer && hasUploadedSlides === true,
     transcriptText: localTranscript,
     transcriptListening: transcriptIsListening,
@@ -505,8 +516,38 @@ export default function MeetRoom() {
 
           <div className="flex-1 flex overflow-hidden">
             <div className="flex-1 flex flex-col overflow-hidden">
-
-
+              {/* Participant filmstrip with video */}
+              {presenting && (
+                <div className="flex gap-2 px-4 pt-2 overflow-x-auto flex-shrink-0">
+                  {realtimeParticipants.length > 0
+                    ? realtimeParticipants.map((p) => {
+                        const isSelf = p.id === localPeerId;
+                        return (
+                          <ParticipantTile
+                            key={p.id}
+                            participant={{
+                              id: p.id,
+                              name: p.name,
+                              initials: p.name.slice(0, 2).toUpperCase(),
+                              color: stringToColor(p.name),
+                              isMuted: isSelf ? !audioEnabled : false,
+                              isCameraOff: isSelf ? !videoEnabled : false,
+                              isSelf,
+                            }}
+                            size="filmstrip"
+                            stream={isSelf ? stream : (remoteStreams.get(p.id) ?? null)}
+                            handRaised={p.handRaised}
+                            role={p.role}
+                          />
+                        );
+                      })
+                    : (
+                      <div className="px-3 py-1.5 text-xs text-muted-foreground">
+                        Waiting for participants…
+                      </div>
+                    )}
+                </div>
+              )}
 
               {/* AI Coordinator status (teacher with uploaded slides) */}
               {!isViewer && hasUploadedSlides && (
@@ -647,7 +688,37 @@ export default function MeetRoom() {
                       </div>
                     )}
                   </div>
-                ) : null}
+                ) : (
+                  <div className="h-full grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
+                    {realtimeParticipants.length > 0
+                      ? realtimeParticipants.map((p) => {
+                          const isSelf = p.id === localPeerId;
+                          return (
+                            <ParticipantTile
+                              key={p.id}
+                              participant={{
+                                id: p.id,
+                                name: p.name,
+                                initials: p.name.slice(0, 2).toUpperCase(),
+                                color: stringToColor(p.name),
+                                isMuted: isSelf ? !audioEnabled : false,
+                                isCameraOff: isSelf ? !videoEnabled : false,
+                                isSelf,
+                              }}
+                              size="large"
+                              stream={isSelf ? stream : (remoteStreams.get(p.id) ?? null)}
+                              handRaised={p.handRaised}
+                              role={p.role}
+                            />
+                          );
+                        })
+                      : (
+                        <div className="col-span-full flex items-center justify-center text-muted-foreground">
+                          No participants yet
+                        </div>
+                      )}
+                  </div>
+                )}
               </div>
 
               {presenting && !isViewer && !hasUploadedSlides && section && <SpeakerNotes notes={section.speakerNotes} />}

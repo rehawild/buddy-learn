@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Users, Brain, Zap, Target, Loader2, Sparkles } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { useTeacherSessions } from "@/hooks/useTeacherSessions";
-import { useSessionEngagement, type StudentRow } from "@/hooks/useSessionEngagement";
+import { useSessionEngagement, type StudentRow, type QuestionDispatchStat } from "@/hooks/useSessionEngagement";
 import { supabase } from "@/integrations/supabase/client";
 import {
   mockStudents,
@@ -37,7 +37,7 @@ export default function TeacherDashboard() {
   };
 
   // Real engagement data
-  const { students: realStudents, timeline: realTimeline, difficultyBreakdown: realDifficulty, reactions: realReactions, loading: engagementLoading } =
+  const { students: realStudents, timeline: realTimeline, difficultyBreakdown: realDifficulty, reactions: realReactions, questionStats, loading: engagementLoading } =
     useSessionEngagement(selectedSessionId || null);
 
   // Use real data when available, fall back to mock
@@ -253,6 +253,72 @@ export default function TeacherDashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Question Analysis */}
+        {questionStats.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Question Analysis</CardTitle>
+              <CardDescription className="text-xs">Per-question accuracy — sorted hardest first to spot trouble spots</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Question</TableHead>
+                    <TableHead className="text-center w-20">Slide</TableHead>
+                    <TableHead className="text-center w-24">Difficulty</TableHead>
+                    <TableHead className="text-center w-24">Accuracy</TableHead>
+                    <TableHead className="hidden sm:table-cell text-center w-24">Responses</TableHead>
+                    <TableHead className="hidden md:table-cell text-center w-20">Source</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {questionStats.map((q, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium max-w-[300px] truncate" title={q.questionText}>
+                        {q.questionText}
+                      </TableCell>
+                      <TableCell className="text-center text-xs font-mono">
+                        {q.slideIndex + 1}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          variant="secondary"
+                          className={`text-[10px] ${
+                            q.difficulty === "hard"
+                              ? "bg-destructive/15 text-destructive"
+                              : q.difficulty === "easy"
+                                ? "bg-primary/15 text-primary"
+                                : ""
+                          }`}
+                        >
+                          {q.difficulty}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center gap-2 justify-center">
+                          <Progress value={q.accuracy} className="h-2 w-12" />
+                          <span className="text-xs font-mono text-muted-foreground w-8">
+                            {q.responses.length > 0 ? `${q.accuracy}%` : "—"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-center text-xs font-mono">
+                        {q.responses.length}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-center">
+                        <Badge variant="outline" className="text-[10px]">
+                          {q.source}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Student Table */}
         <Card>
