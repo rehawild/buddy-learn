@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, Send, Loader2, MessageCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-const MASCOT_VIDEO = "/mascot.mp4";
+import mascotImg from "@/assets/catchy.png";
 
 interface BuddyChatDialogProps {
   chatHistory: { role: "user" | "assistant"; content: string }[];
