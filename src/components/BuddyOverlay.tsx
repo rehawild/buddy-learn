@@ -1,8 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import buddyImg from "@/assets/buddy-owl.png";
 import type { Question } from "@/data/lessons";
+
+const MASCOT_VIDEO = "/mascot.mp4";
+
+// Float waypoints along screen edges (percentage-based)
+const WAYPOINTS = [
+  { x: 85, y: 75 }, // bottom-right (start)
+  { x: 85, y: 20 }, // top-right
+  { x: 5, y: 15 },  // top-left
+  { x: 5, y: 70 },  // bottom-left
+  { x: 40, y: 80 }, // bottom-center
+  { x: 85, y: 75 }, // back to start
+];
+
+const FLOAT_STEP_MS = 8000; // time per waypoint
 
 interface BuddyOverlayProps {
   question: Question | null;
@@ -28,8 +41,32 @@ export default function BuddyOverlay({
   const [isCorrect, setIsCorrect] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
+  // Floating position
+  const [pos, setPos] = useState(WAYPOINTS[0]);
+  const waypointIdxRef = useRef(0);
+  const floatPausedRef = useRef(false);
+
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
+
+  // Float around when idle (not showing question dialog)
+  useEffect(() => {
+    if (!enabled) return;
+
+    const advance = () => {
+      if (floatPausedRef.current) return;
+      waypointIdxRef.current = (waypointIdxRef.current + 1) % WAYPOINTS.length;
+      setPos(WAYPOINTS[waypointIdxRef.current]);
+    };
+
+    const timer = setInterval(advance, FLOAT_STEP_MS);
+    return () => clearInterval(timer);
+  }, [enabled]);
+
+  // Pause floating when dialog is open
+  useEffect(() => {
+    floatPausedRef.current = isOpen;
+  }, [isOpen]);
 
   // When a new question arrives, open dialog and enter question phase
   useEffect(() => {
@@ -81,14 +118,29 @@ export default function BuddyOverlay({
   if (!enabled) return null;
 
   return (
-    <div className="absolute bottom-4 right-4 z-30 flex flex-col items-end gap-2">
+    <div
+      className="absolute z-30 flex flex-col items-end gap-2 pointer-events-none"
+      style={{
+        left: `${pos.x}%`,
+        top: `${pos.y}%`,
+        transform: "translate(-50%, -50%)",
+        transition: `left ${FLOAT_STEP_MS}ms cubic-bezier(0.4, 0, 0.2, 1), top ${FLOAT_STEP_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+      }}
+    >
       {/* Dialog panel */}
       {isOpen && phase !== "idle" && question && (
-        <div className="w-80 bg-card border border-border rounded-xl shadow-2xl overflow-hidden buddy-bounce">
+        <div className="w-80 bg-card border border-border rounded-xl shadow-2xl overflow-hidden buddy-bounce pointer-events-auto">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-secondary/50">
             <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-buddy flex-shrink-0">
-              <img src={buddyImg} alt="Study Buddy" className="w-full h-full object-cover" />
+              <video
+                src={MASCOT_VIDEO}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">Study Buddy</p>
@@ -209,9 +261,16 @@ export default function BuddyOverlay({
       {/* Mascot button */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="w-14 h-14 rounded-full overflow-hidden border-2 border-buddy buddy-pulse cursor-pointer hover:scale-105 transition-transform flex-shrink-0"
+        className="w-16 h-16 rounded-full overflow-hidden border-2 border-buddy buddy-float cursor-pointer hover:scale-110 transition-transform flex-shrink-0 shadow-lg pointer-events-auto"
       >
-        <img src={buddyImg} alt="Study Buddy" className="w-full h-full object-cover" />
+        <video
+          src={MASCOT_VIDEO}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover"
+        />
       </button>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, Send, Loader2, MessageCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import buddyImg from "@/assets/buddy-owl.png";
+const MASCOT_VIDEO = "/mascot.mp4";
 
 interface BuddyChatDialogProps {
   chatHistory: { role: "user" | "assistant"; content: string }[];
@@ -48,7 +48,7 @@ export default function BuddyChatDialog({
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-secondary/50">
             <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-buddy flex-shrink-0">
-              <img src={buddyImg} alt="Study Buddy" className="w-full h-full object-cover" />
+              <video src={MASCOT_VIDEO} autoPlay loop muted playsInline className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">Ask Buddy</p>

@@ -114,6 +114,10 @@
     animation: buddy-pulse 2s ease-in-out infinite;
   }
 
+  .buddy-float {
+    animation: buddy-float 3s ease-in-out infinite;
+  }
+
   .fade-up {
     animation: fade-up 0.4s ease-out;
   }
@@ -137,6 +141,11 @@
 @keyframes buddy-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
+}
+
+@keyframes buddy-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.03); }
 }
 
 @keyframes fade-up {
