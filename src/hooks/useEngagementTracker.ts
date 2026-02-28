@@ -91,17 +91,11 @@ export function useEngagementTracker({
     const now = Date.now();
     let score = 0;
 
-    // Tab visible: +40
-    if (tabVisibleRef.current) score += 40;
+    // Tab visible: +50
+    if (tabVisibleRef.current) score += 50;
 
-    // Mouse active in last 15s: +30
-    if (now - lastMouseMoveRef.current < MOUSE_ACTIVE_WINDOW_MS) score += 30;
-
-    // Scroll activity in last 30s: +15
-    if (now - lastScrollRef.current < SCROLL_ACTIVE_WINDOW_MS) score += 15;
-
-    // Answered question in last 60s: +15
-    if (now - lastQuestionRef.current < QUESTION_ACTIVE_WINDOW_MS) score += 15;
+    // Answered question in last 60s: +50
+    if (now - lastQuestionRef.current < QUESTION_ACTIVE_WINDOW_MS) score += 50;
 
     return score;
   }, []);
