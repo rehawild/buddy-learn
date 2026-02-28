@@ -44,7 +44,7 @@ Output format (JSON array):
   }
 ]`;
 
-const TRANSCRIPT_QUESTION_SYSTEM = `You are StudyBuddy's question generator. Given a teacher's spoken transcript and the current slide context, generate 1-3 multiple-choice (A/B) questions about concepts the teacher emphasized verbally.
+const TRANSCRIPT_QUESTION_SYSTEM = `You are Catchy's question generator. Given a teacher's spoken transcript and the current slide context, generate 1-3 multiple-choice (A/B) questions about concepts the teacher emphasized verbally.
 
 Rules:
 - Focus on concepts mentioned in the transcript that go BEYOND what's written on the slide.
