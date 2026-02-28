@@ -34,6 +34,7 @@ interface EngagementTracker {
   recordBuddyChat: () => void;
   flush: () => Promise<void>;
   getAggregate: () => EngagementAggregate;
+  computeAttention: () => number;
 }
 
 // ── Constants ──
@@ -286,5 +287,5 @@ export function useEngagementTracker({
     return { ...aggregateRef.current };
   }, []);
 
-  return { recordQuestionResponse, recordReaction, recordBuddyChat, flush, getAggregate };
+  return { recordQuestionResponse, recordReaction, recordBuddyChat, flush, getAggregate, computeAttention };
 }

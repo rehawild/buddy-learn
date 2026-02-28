@@ -22,6 +22,7 @@ import { useSessionSlides } from "@/hooks/useSessionSlides";
 import { useCoordinatorAgent } from "@/hooks/useCoordinatorAgent";
 import { useStudentAgent } from "@/hooks/useStudentAgent";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
+import { useBuddyMood } from "@/hooks/useBuddyMood";
 import { supabase } from "@/integrations/supabase/client";
 
 function stringToColor(str: string): string {
@@ -176,6 +177,19 @@ export default function MeetRoom() {
     enabled: isViewer,
   });
 
+  // ── Buddy mood (students only) ──
+  const [buddyPhaseInfo, setBuddyPhaseInfo] = useState<{
+    phase: "idle" | "question" | "feedback";
+    correct: boolean;
+  }>({ phase: "idle", correct: false });
+
+  const { mood: buddyMood, moodSrc: buddyMoodSrc } = useBuddyMood({
+    computeAttention: engagementTracker.computeAttention,
+    phase: buddyPhaseInfo.phase,
+    isCorrect: buddyPhaseInfo.correct,
+    enabled: isViewer && buddyEnabled,
+  });
+
   // ── Session-ended state (students) ──
   const [sessionEnded, setSessionEnded] = useState(false);
   const presenterSeenRef = useRef(false);
@@ -291,6 +305,17 @@ export default function MeetRoom() {
     ? (isViewer ? aiActiveQuestion : null)
     : activeQuestion;
 
+  // Sync buddy phase when question appears/disappears
+  useEffect(() => {
+    if (effectiveQuestion) {
+      setBuddyPhaseInfo({ phase: "question", correct: false });
+    } else {
+      setBuddyPhaseInfo((prev) =>
+        prev.phase !== "idle" ? { phase: "idle", correct: false } : prev,
+      );
+    }
+  }, [effectiveQuestion]);
+
   // Broadcast helper
   const broadcastState = useCallback((overrides: Partial<RoomState> = {}) => {
     if (isViewer) return;
@@ -337,6 +362,9 @@ export default function MeetRoom() {
       total: prev.total + 1,
       concepts: [...new Set([...prev.concepts, section?.title || ""])].slice(-5),
     }));
+
+    // Update buddy mood phase
+    setBuddyPhaseInfo({ phase: "feedback", correct });
 
     // Track engagement
     engagementTracker.recordQuestionResponse(correct, responseTimeMs, displayIdx);
@@ -758,6 +786,8 @@ export default function MeetRoom() {
                           onDismiss={handleDismiss}
                           readOnly={!hasUploadedSlides}
                           questionSource={effectiveQuestion?.source === "transcript" ? "transcript" : (effectiveQuestion && hasUploadedSlides ? "slides" : undefined)}
+                          mood={buddyMood}
+                          moodSrc={buddyMoodSrc}
                         />
                         <BuddyChatDialog
                           chatHistory={aiChatHistory}

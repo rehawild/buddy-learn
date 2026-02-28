@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Question } from "@/data/lessons";
+import type { BuddyMood } from "@/hooks/useBuddyMood";
 import mascotImg from "@/assets/catchy.png";
 
 const WAYPOINTS = [
@@ -24,6 +25,8 @@ interface BuddyOverlayProps {
   onDismiss: () => void;
   readOnly?: boolean;
   questionSource?: "slides" | "transcript";
+  mood?: BuddyMood;
+  moodSrc?: string;
 }
 
 export default function BuddyOverlay({
@@ -34,6 +37,7 @@ export default function BuddyOverlay({
   onDismiss,
   readOnly = false,
   questionSource,
+  moodSrc,
 }: BuddyOverlayProps) {
   const [phase, setPhase] = useState<"idle" | "question" | "feedback">("idle");
   const [userAnswer, setUserAnswer] = useState("");
@@ -126,7 +130,7 @@ export default function BuddyOverlay({
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-secondary/50">
             <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-buddy flex-shrink-0">
-              <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
+              <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">Catchy</p>
@@ -230,7 +234,7 @@ export default function BuddyOverlay({
         onClick={() => setIsOpen((prev) => !prev)}
         className="w-16 h-16 rounded-full overflow-hidden border-2 border-buddy buddy-float cursor-pointer hover:scale-110 transition-transform flex-shrink-0 shadow-lg pointer-events-auto"
       >
-        <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
+        <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
       </button>
     </div>
   );
