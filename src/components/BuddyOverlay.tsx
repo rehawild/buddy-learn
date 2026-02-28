@@ -51,6 +51,11 @@ export default function BuddyOverlay({
 
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Drag state
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef({ active: false, startX: 0, startY: 0, moved: false });
 
   useEffect(() => {
     if (!enabled) return;
@@ -92,20 +97,56 @@ export default function BuddyOverlay({
       dismissTimerRef.current = setTimeout(() => {
         setIsOpen(false);
         setPhase("idle");
-        setPos(WAYPOINTS[waypointIdxRef.current]);
+        if (!pinned) setPos(WAYPOINTS[waypointIdxRef.current]);
         onDismiss();
       }, 3500);
     },
-    [question, onAnswer, onDismiss],
+    [question, onAnswer, onDismiss, pinned],
   );
 
   const handleClose = useCallback(() => {
     clearTimeout(dismissTimerRef.current);
     setIsOpen(false);
     setPhase("idle");
-    setPos(WAYPOINTS[waypointIdxRef.current]);
+    if (!pinned) setPos(WAYPOINTS[waypointIdxRef.current]);
     onDismiss();
-  }, [onDismiss]);
+  }, [onDismiss, pinned]);
+
+  const pointerToPercent = useCallback((clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return null;
+    return {
+      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
+    };
+  }, []);
+
+  const handleDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    dragRef.current = { active: true, startX: e.clientX, startY: e.clientY, moved: false };
+    setDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
+
+  const handleDragMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current.active) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    if (!dragRef.current.moved && Math.abs(dx) + Math.abs(dy) > 5) {
+      dragRef.current.moved = true;
+    }
+    if (dragRef.current.moved) {
+      const pct = pointerToPercent(e.clientX, e.clientY);
+      if (pct) setPos(pct);
+    }
+  }, [pointerToPercent]);
+
+  const handleDragEnd = useCallback(() => {
+    const wasDrag = dragRef.current.moved;
+    dragRef.current = { active: false, startX: 0, startY: 0, moved: false };
+    setDragging(false);
+    if (wasDrag) setPinned(true);
+  }, []);
 
   useEffect(() => {
     return () => clearTimeout(dismissTimerRef.current);
@@ -120,10 +161,10 @@ export default function BuddyOverlay({
   const nearTop = pos.y < 35;
 
   const easing = "cubic-bezier(0.25, 0.1, 0.25, 1)";
-  const transitionDuration = isOpen ? "600ms" : `${FLOAT_STEP_MS}ms`;
+  const transitionDuration = dragging ? "0ms" : isOpen ? "600ms" : `${FLOAT_STEP_MS}ms`;
 
   return (
-    <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
+    <div ref={containerRef} className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
       <div
         className={`absolute flex ${nearTop && dialogOpen ? "flex-col-reverse" : "flex-col"} items-end gap-2`}
         style={{
@@ -244,12 +285,18 @@ export default function BuddyOverlay({
 
         {/* Mascot button + pin */}
         <div className="relative group flex-shrink-0 pointer-events-auto">
-          <button
-            onClick={() => setIsOpen((prev) => !prev)}
-            className={`w-16 h-16 rounded-full overflow-hidden border-2 border-buddy cursor-pointer hover:scale-110 transition-transform shadow-lg ${pinned ? "" : "buddy-float"}`}
+          <div
+            onPointerDown={handleDragStart}
+            onPointerMove={handleDragMove}
+            onPointerUp={() => {
+              const wasDrag = dragRef.current.moved;
+              handleDragEnd();
+              if (!wasDrag) setIsOpen((prev) => !prev);
+            }}
+            className={`w-16 h-16 rounded-full overflow-hidden border-2 border-buddy cursor-grab active:cursor-grabbing hover:scale-110 transition-transform shadow-lg touch-none select-none ${pinned || dragging ? "" : "buddy-float"}`}
           >
-            <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
-          </button>
+            <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300 pointer-events-none" draggable={false} />
+          </div>
           <button
             onClick={() => setPinned((p) => !p)}
             className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border border-border shadow-md transition-all ${
