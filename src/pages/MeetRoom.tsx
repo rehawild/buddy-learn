@@ -239,23 +239,20 @@ export default function MeetRoom() {
   }, [engagementTracker, slideTitle, results]);
 
   // ── Student: listen for session_ended broadcast ──
+  const sessionEndedHandledRef = useRef(false);
   useEffect(() => {
     if (!isViewer || !channel) return;
 
-    const handleSessionEnded = () => {
-      if (sessionEnded) return;
+    channel.on("broadcast", { event: "session_ended" }, () => {
+      if (sessionEndedHandledRef.current) return;
+      sessionEndedHandledRef.current = true;
       setSessionEnded(true);
       engagementTracker.flush();
       setTimeout(() => {
         navigate("/recap", { state: buildRecapState() });
       }, 2000);
-    };
-
-    channel.on("broadcast", { event: "session_ended" }, handleSessionEnded);
-    return () => {
-      channel.off("broadcast", { event: "session_ended" }, handleSessionEnded);
-    };
-  }, [isViewer, channel, sessionEnded, engagementTracker, navigate, buildRecapState]);
+    });
+  }, [isViewer, channel, engagementTracker, navigate, buildRecapState]);
 
   // ── Presence fallback: detect presenter leaving ──
   useEffect(() => {
