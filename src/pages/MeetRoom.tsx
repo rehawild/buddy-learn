@@ -5,6 +5,7 @@ import { useMediaStream } from "@/hooks/useMediaStream";
 import { lessons, type Question } from "@/data/lessons";
 import ParticipantTile from "@/components/ParticipantTile";
 import MeetSidebar from "@/components/MeetSidebar";
+import ChatNotifications from "@/components/ChatNotifications";
 import MeetBottomBar from "@/components/MeetBottomBar";
 import BuddyOverlay from "@/components/BuddyOverlay";
 import BuddyChatDialog from "@/components/BuddyChatDialog";
@@ -25,6 +26,7 @@ import { useCoordinatorAgent } from "@/hooks/useCoordinatorAgent";
 import { useStudentAgent } from "@/hooks/useStudentAgent";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useBuddyMood } from "@/hooks/useBuddyMood";
+import { useChatChannel } from "@/hooks/useChatChannel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -51,6 +53,8 @@ export default function MeetRoom() {
 
   // Real camera & mic
   const { stream, videoEnabled, audioEnabled, toggleVideo, toggleAudio } = useMediaStream();
+  // Chat channel (stays subscribed regardless of sidebar state)
+  const { messages: chatMessages, sendMessage: sendChatMessage } = useChatChannel(roomCode, userName);
   const [presenting, setPresenting] = useState(!isViewer);
   const [sidePanel, setSidePanel] = useState<"chat" | "people" | "questions" | null>(null);
   const [handRaised, setHandRaised] = useState(false);
@@ -954,8 +958,8 @@ export default function MeetRoom() {
               <MeetSidebar
                 panel={sidePanel}
                 onClose={() => setSidePanel(null)}
-                roomCode={roomCode}
-                userName={userName}
+                messages={chatMessages}
+                onSendMessage={sendChatMessage}
                 realtimeParticipants={realtimeParticipants}
                 isTeacher={!isViewer}
                 onLowerHand={handleLowerHand}
@@ -1010,6 +1014,9 @@ export default function MeetRoom() {
           theme={lesson.theme || "default"}
         />
       )}
+
+      {/* Chat floating notifications */}
+      <ChatNotifications messages={chatMessages} userName={userName} chatOpen={sidePanel === "chat"} />
 
       {/* Session ended overlay (students) */}
       {sessionEnded && (

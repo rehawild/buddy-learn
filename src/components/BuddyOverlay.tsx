@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { X } from "lucide-react";
+import { X, Pin, PinOff } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Question } from "@/data/lessons";
 import type { BuddyMood } from "@/hooks/useBuddyMood";
@@ -45,6 +45,7 @@ export default function BuddyOverlay({
   const [isOpen, setIsOpen] = useState(false);
 
   const [pos, setPos] = useState(WAYPOINTS[0]);
+  const [pinned, setPinned] = useState(false);
   const waypointIdxRef = useRef(0);
   const floatPausedRef = useRef(false);
 
@@ -62,7 +63,7 @@ export default function BuddyOverlay({
     return () => clearInterval(timer);
   }, [enabled]);
 
-  useEffect(() => { floatPausedRef.current = isOpen; }, [isOpen]);
+  useEffect(() => { floatPausedRef.current = isOpen || pinned; }, [isOpen, pinned]);
 
   useEffect(() => {
     if (question && enabled) {
@@ -112,9 +113,9 @@ export default function BuddyOverlay({
 
   if (!enabled) return null;
 
-  // When dialog is open, use tighter clamp to keep the 320px panel within bounds.
-  // Dialog + mascot total height ≈ 350px, width = 320px.
-  // Clamp center point so edges don't overflow.
+  // When dialog is open, clamp the center point so the full assembly stays in bounds.
+  // Assembly: dialog (ScrollArea max-h-48 + header + padding ≈ 16.5rem) + gap (0.5rem) + mascot (4rem) ≈ 21rem tall, 20rem wide.
+  // translate(-50%,-50%) centers at the point, so clamp by half-size + small buffer.
   const dialogOpen = isOpen && phase !== "idle" && !!question;
   const nearTop = pos.y < 35;
 
@@ -130,9 +131,7 @@ export default function BuddyOverlay({
             ? `clamp(10.5rem, ${pos.x}%, calc(100% - 10.5rem))`
             : `clamp(2.5rem, ${pos.x}%, calc(100% - 2.5rem))`,
           top: dialogOpen
-            ? (nearTop
-              ? `clamp(2.5rem, ${pos.y}%, calc(100% - 22rem))`
-              : `clamp(22rem, ${pos.y}%, calc(100% - 5rem))`)
+            ? `clamp(11rem, ${pos.y}%, calc(100% - 11rem))`
             : `clamp(2.5rem, ${pos.y}%, calc(100% - 2.5rem))`,
           transform: "translate(-50%, -50%)",
           transition: `left ${transitionDuration} ${easing}, top ${transitionDuration} ${easing}`,
@@ -243,13 +242,26 @@ export default function BuddyOverlay({
           </div>
         )}
 
-        {/* Mascot button */}
-        <button
-          onClick={() => setIsOpen((prev) => !prev)}
-          className="w-16 h-16 rounded-full overflow-hidden border-2 border-buddy buddy-float cursor-pointer hover:scale-110 transition-transform flex-shrink-0 shadow-lg pointer-events-auto"
-        >
-          <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
-        </button>
+        {/* Mascot button + pin */}
+        <div className="relative group flex-shrink-0 pointer-events-auto">
+          <button
+            onClick={() => setIsOpen((prev) => !prev)}
+            className={`w-16 h-16 rounded-full overflow-hidden border-2 border-buddy cursor-pointer hover:scale-110 transition-transform shadow-lg ${pinned ? "" : "buddy-float"}`}
+          >
+            <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
+          </button>
+          <button
+            onClick={() => setPinned((p) => !p)}
+            className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border border-border shadow-md transition-all ${
+              pinned
+                ? "bg-primary text-primary-foreground opacity-100"
+                : "bg-card text-muted-foreground opacity-0 group-hover:opacity-100"
+            }`}
+            title={pinned ? "Unpin buddy" : "Pin buddy in place"}
+          >
+            {pinned ? <Pin className="w-3 h-3" /> : <PinOff className="w-3 h-3" />}
+          </button>
+        </div>
       </div>
     </div>
   );

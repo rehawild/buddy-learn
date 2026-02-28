@@ -163,3 +163,15 @@
   70% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-200px) scale(1.4); }
 }
+
+/* Chat notification slide-in */
+.chat-notify {
+  animation: chat-notify 4s ease-out forwards;
+}
+
+@keyframes chat-notify {
+  0% { opacity: 0; transform: translateX(-100%); }
+  8% { opacity: 1; transform: translateX(0); }
+  75% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(-50%); }
+}

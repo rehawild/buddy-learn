@@ -1,46 +1,21 @@
 import { X, Send, Users, MessageSquare, Hand } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import type { RoomParticipant } from "@/hooks/useRealtimeRoom";
-
-interface ChatMessage {
-  sender: string;
-  text: string;
-  time: string;
-}
+import type { ChatMessage } from "@/hooks/useChatChannel";
 
 interface MeetSidebarProps {
   panel: "chat" | "people";
   onClose: () => void;
-  roomCode?: string | null;
-  userName?: string;
+  messages: ChatMessage[];
+  onSendMessage: (text: string) => void;
   realtimeParticipants?: RoomParticipant[];
   isTeacher?: boolean;
   onLowerHand?: (targetId: string) => void;
 }
 
-export default function MeetSidebar({ panel, onClose, roomCode, userName = "You", realtimeParticipants = [], isTeacher = false, onLowerHand }: MeetSidebarProps) {
+export default function MeetSidebar({ panel, onClose, messages, onSendMessage, realtimeParticipants = [], isTeacher = false, onLowerHand }: MeetSidebarProps) {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Subscribe to chat broadcast
-  useEffect(() => {
-    if (!roomCode || panel !== "chat") return;
-
-    const channel = supabase.channel(`chat:${roomCode}`);
-    channel.on("broadcast", { event: "chat_message" }, ({ payload }) => {
-      setMessages((prev) => [...prev, payload as ChatMessage]);
-    });
-    channel.subscribe();
-    channelRef.current = channel;
-
-    return () => {
-      channel.unsubscribe();
-      channelRef.current = null;
-    };
-  }, [roomCode, panel]);
 
   // Auto-scroll
   useEffect(() => {
@@ -50,22 +25,8 @@ export default function MeetSidebar({ panel, onClose, roomCode, userName = "You"
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    const msg: ChatMessage = {
-      sender: userName,
-      text: message,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-    setMessages((prev) => [...prev, msg]);
+    onSendMessage(message);
     setMessage("");
-
-    // Broadcast to others
-    if (roomCode && channelRef.current) {
-      channelRef.current.send({
-        type: "broadcast",
-        event: "chat_message",
-        payload: msg,
-      });
-    }
   };
 
   return (
