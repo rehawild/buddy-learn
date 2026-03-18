@@ -134,6 +134,10 @@ export default function MeetHome() {
           <span className="text-lg font-semibold text-foreground">Catchy</span>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => navigate("/learn")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <BookOpen className="w-4 h-4" />
+            <span className="hidden sm:inline">Courses</span>
+          </button>
           {isTeacher && (
             <button onClick={() => navigate("/dashboard")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               <LayoutDashboard className="w-4 h-4" />

@@ -13,6 +13,7 @@ import MeetRoom from "./pages/MeetRoom";
 import Recap from "./pages/Recap";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import Profile from "./pages/Profile";
+import Learn from "./pages/Learn";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ const App = () => (
         <AuthProvider>
           <MediaStreamProvider>
           <Routes>
+            <Route path="/learn" element={<Learn />} />
             <Route path="/landing" element={<LandingRoute />} />
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/" element={<ProtectedRoute><MeetHome /></ProtectedRoute>} />
