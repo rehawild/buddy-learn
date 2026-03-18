@@ -1,41 +1,80 @@
-# Catchy — AI Classroom Engagement Pet
+# The AI Pet That Makes Financial Literacy Stick
 
-> MIT Minds & Machines Hackathon · Education Challenge: AI Classroom & Debate Coach
+> MIT Minds & Machines Hackathon · Education Challenge
 
 ---
 
-## What is Catchy?
+## The Problem
 
-Catchy is an on-screen AI pet that sits on top of live classroom presentations and keeps students engaged — like Duolingo's owl, but for any subject, in any classroom.
+Financial literacy is one of the most critical life skills — and one of the least taught effectively. Students sit through lessons on budgeting, credit, and compound interest, nod along, and forget 80% of it by the next morning. Passive learning doesn't work for content that actually changes lives.
 
-It has two modes:
+---
 
-- **Proactive** — Listens to the teacher via the Web Speech API, matches speech against slide content, and fires A/B micro-questions the moment a topic is covered. Not on a timer. On content.
-- **Reactive** — Students chat with Catchy to ask "explain this simpler" and get short, slide-grounded answers via Azure OpenAI.
+## The Solution
 
-Engagement is inferred entirely from interaction signals — tab focus, answer accuracy, response time. No webcam. No screen recording.
+An on-screen AI companion that sits on top of any financial literacy lesson and actively fights disengagement.
+
+While the teacher explains the 50/30/20 rule or the cost of carrying credit card debt, the pet watches the lesson in real time. The moment a concept is covered, it fires a quick question — "Which bucket does rent go in?" — before the student's attention drifts. They answer, get instant feedback, and the idea anchors.
+
+No webcam. No invasive monitoring. Engagement is inferred from interaction signals alone: tab focus, answer accuracy, response time.
+
+---
+
+## How It Works
+
+### For Students
+1. Teacher starts a session and shares a room code
+2. Student joins — the pet appears as an overlay on the slides
+3. As the teacher speaks, A/B and open-text questions pop up at exactly the right moment
+4. The pet reacts: happy when you're on a streak, worried when you go quiet
+5. At the end, a recap shows every concept covered and every question answered
+
+### For Teachers
+1. Upload your own slides or launch **Financial Literacy 101** from the course catalog in one click
+2. The AI coordinator listens to your speech, matches it against slide content, and generates contextual questions
+3. You approve or dismiss questions before they reach students
+4. Watch live attention scores and answer accuracy per student
+5. After the session, review a full breakdown — which slides had the lowest comprehension, which students struggled
+
+---
+
+## Built-in Course: Financial Literacy 101
+
+A complete, ready-to-teach course on personal finance — no setup required.
+
+| Section | Topic |
+|---|---|
+| 1 | The 50/30/20 Budgeting Rule |
+| 2 | Building an Emergency Fund |
+| 3 | Credit Scores & Debt Management |
+| 4 | Compound Interest — The Eighth Wonder |
+| 5 | Investing Basics |
+| 6 | Your 30-Day Action Plan |
+
+Launch it from the course catalog at `/learn`. One click creates a live session with a shareable room code.
 
 ---
 
 ## Features
 
-### For Students
-- **Buddy overlay** — A/B and open-text questions triggered mid-lesson
-- **Instant feedback** — Reinforcement on correct answers, correction on wrong ones
-- **Mood system** — Catchy's expression reflects your engagement (happy, curious, sleepy, worried)
-- **Subtitles** — Live captions of the teacher's speech
+- **Content-aware questions** — AI reads the live transcript and only asks about what was just taught
+- **Instant feedback loop** — reinforcement on correct answers, correction with explanation on wrong ones
+- **Pet mood system** — visual engagement mirror (happy → curious → sleepy → worried), no camera needed
+- **Teacher approval queue** — every AI-generated question goes through teacher review first
+- **Live presence tracking** — see who's in the room and their real-time attention score
+- **Per-slide accuracy dashboard** — know exactly which concept lost the room
+- **End-of-session recap** — full list of questions answered, concepts covered, and missed topics
+- **Works with any slides** — upload a PDF or PPTX to use your own content
 
-### For Teachers
-- **Live session management** — Upload a PDF/PPTX or pick a built-in course from the catalog, generate a room code, students join instantly
-- **Coordinator agent** — Reads the live transcript, decides when a topic has been covered, queues a question for students
-- **Approval queue** — Teacher reviews AI-generated questions before they go to students
-- **Real-time presence** — See who's in the room, track attention scores per student
-- **Teacher dashboard** — Per-slide accuracy breakdown, engagement over time, answered questions per student
-- **Emoji reactions** — Students send live emoji reactions broadcast to all participants
+---
 
-### Course Catalog (`/learn`)
-- Browse 5 built-in lessons: Photosynthesis, Renaissance, Newton's Laws, Financial Literacy 101, French Revolution
-- One click to start a live session — no upload needed
+## Privacy
+
+- No webcam
+- No screen recording
+- No keystroke logging
+- Engagement inferred from: tab visibility · answer accuracy · response latency
+- Row-level security on all data — students only see their own session
 
 ---
 
@@ -43,85 +82,24 @@ Engagement is inferred entirely from interaction signals — tab focus, answer a
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18 · TypeScript 5 · Vite 5 |
-| Styling | Tailwind CSS 3 · shadcn/ui · CSS custom properties |
+| Frontend | React 18 · TypeScript · Vite · Tailwind CSS · shadcn/ui |
 | Backend | Supabase (Auth · Postgres · Realtime · Storage) |
-| AI | Azure OpenAI (GPT-4o) via Supabase Edge Functions |
-| Speech | Web Speech API (live transcripts) |
-| Charts | Recharts |
-| Icons | Lucide React |
-| Fonts | DM Sans · JetBrains Mono |
+| AI | Azure OpenAI (GPT-4o) via edge functions |
+| Speech | Web Speech API (live teacher transcripts) |
+| Realtime | Supabase Realtime (slide sync · chat · reactions) |
 
 ---
 
-## Architecture
+## Impact
 
-```
-App.tsx
-├── /landing     → LandingPage (public marketing page)
-├── /learn       → Learn (public course catalog)
-├── /auth        → Auth (login / signup, role: teacher | student)
-├── /            → MeetHome (upload & present · join by code)
-├── /lobby       → MeetLobby (camera preview, access checks)
-├── /meet        → MeetRoom (slides · buddy · real-time sync)
-├── /recap       → Recap (session summary)
-├── /profile     → Profile (avatar, name, history)
-└── /dashboard   → TeacherDashboard (analytics)
-```
-
-### Key Agents
-
-| Agent | Role |
-|---|---|
-| **Coordinator** (`useCoordinatorAgent`) | Teacher-side. Watches live transcript, decides when a topic is covered, generates questions, sends to approval queue |
-| **Student agent** (`useStudentAgent`) | Student-side. Manages question queue, sends answers to Azure OpenAI for feedback, updates buddy mood |
-
-### Realtime Channels
-
-| Channel | Purpose |
-|---|---|
-| `room:{code}` | Slide position sync + presence |
-| `chat:{code}` | Live chat messages |
-| `reactions:{code}` | Emoji reactions |
-
----
-
-## Database Schema (Supabase)
-
-**Tables:** `profiles` · `user_roles` · `presentations` · `presentation_slides` · `sessions` · `session_engagement`
-
-**Storage:** `presentations` (private) · `slide-images` (public) · `avatars` (public)
-
-**Auth:** Email/password with RLS on all tables. `has_role()` function for policy checks.
-
----
-
-## Built-in Lessons
-
-| Lesson | Subject | Slides | Questions |
-|---|---|---|---|
-| Photosynthesis: How Plants Make Food | STEM | 6 | 25+ |
-| The Renaissance: A Rebirth of Ideas | Humanities | 6 | 25+ |
-| Gravity & Motion: Newton's Laws | STEM | 6 | 25+ |
-| Financial Literacy 101: Managing Your Money | Finance | 6 | 25+ |
-| The French Revolution | Humanities | 6 | 25+ |
-
----
-
-## Privacy
-
-- No webcam access
-- No screen recording
-- No keystroke logging
-- Engagement tracked only via: tab visibility, answer accuracy, response latency
-- All data scoped to authenticated sessions with row-level security
+The average American can't cover a $400 emergency. Two-thirds of adults fail a basic financial literacy quiz. The gap isn't intelligence — it's engagement. A 30-minute passive lecture on compound interest doesn't compete with TikTok. An AI pet that challenges you mid-lesson, tracks your streak, and shows your teacher where you're stuck — does.
 
 ---
 
 ## What's Next
 
-- Buddy progression and visual evolution (streaks → accessories)
-- Adaptive question difficulty per student
-- Multi-language support
+- Adaptive question difficulty per student based on prior performance
+- Buddy progression system — streaks unlock visual evolution
+- Curriculum packs: debt payoff, investing, taxes, renting vs. buying
 - LMS integrations (Canvas, Google Classroom)
-- Long-term engagement analytics across sessions
+- Multi-language support for underserved communities
