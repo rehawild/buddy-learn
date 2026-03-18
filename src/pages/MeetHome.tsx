@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { Video, Keyboard, Upload, FileText, User, Copy, Check, LayoutDashboard, LogOut } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Video, Keyboard, Upload, FileText, User, Copy, Check, LayoutDashboard, LogOut, BookOpen } from "lucide-react";
 import { generateRoomCode } from "@/lib/room";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ type UploadPhase = "idle" | "uploading" | "converting" | "parsing" | "processing
 
 export default function MeetHome() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { role, signOut, user, avatarUrl } = useAuth();
   const { toast } = useToast();
   const [meetingCode, setMeetingCode] = useState("");
@@ -21,6 +22,20 @@ export default function MeetHome() {
   const [uploadedFile, setUploadedFile] = useState<{ name: string; id: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isTeacher = role === "teacher";
+  // Show FL101 quick-start always for teachers, or when Learn page passes ?start=financial-literacy-101
+  const showFL101 = isTeacher;
+
+  const handleStartFL101 = async () => {
+    if (!user) return;
+    const code = generateRoomCode();
+    await supabase.from("sessions").insert({
+      teacher_id: user.id,
+      presentation_id: null,
+      room_code: code,
+      status: "active",
+    });
+    navigate(`/lobby?room=${code}&lesson=financial-literacy-101`);
+  };
 
   // Keep existing handlers
   const handleNewMeeting = () => {
@@ -172,6 +187,12 @@ export default function MeetHome() {
                   {isProcessing ? phaseLabel[uploadPhase] : "Upload & Present"}
                 </button>
                 <input ref={fileInputRef} type="file" accept=".pdf,.pptx,.ppt" className="hidden" onChange={handleFileUpload} />
+                {showFL101 && (
+                  <button onClick={handleStartFL101} disabled={isProcessing} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-primary text-primary font-semibold hover:bg-primary/10 transition-colors disabled:opacity-50">
+                    <BookOpen className="w-5 h-5" />
+                    Financial Literacy 101
+                  </button>
+                )}
               </>
             ) : (
               <div className="flex items-center gap-2">

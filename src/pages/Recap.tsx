@@ -15,6 +15,7 @@ interface AnsweredQuestion {
 
 interface RecapState {
   lessonTitle: string;
+  lessonSubject?: string;
   correct: number;
   total: number;
   concepts: string[];
@@ -29,6 +30,7 @@ export default function Recap() {
   const data = state ?? { lessonTitle: "Demo Lesson", correct: 0, total: 0, concepts: [] };
   const accuracy = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
   const engagement = data.engagement;
+  const isFinance = data.lessonSubject === "Finance";
 
   const formatResponseTime = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;
@@ -36,12 +38,12 @@ export default function Recap() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+    <div className={`min-h-screen flex flex-col items-center justify-center bg-background px-4${isFinance ? " finance-mode" : ""}`}>
       <div className="max-w-md w-full space-y-8 fade-up">
         <div className="text-center space-y-2">
-          <span className="text-5xl">🎉</span>
+          <span className="text-5xl">{isFinance ? "💰" : "🎉"}</span>
           <h1 className="text-3xl font-bold text-foreground">
-            {engagement ? "Session Complete!" : "Lesson Complete!"}
+            {isFinance ? "Financial Skills Unlocked!" : engagement ? "Session Complete!" : "Lesson Complete!"}
           </h1>
           <p className="text-muted-foreground">{data.lessonTitle}</p>
         </div>
@@ -130,7 +132,9 @@ export default function Recap() {
 
         {data.concepts.length > 0 && (
           <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-3">Key Concepts Covered</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-3">
+              {isFinance ? "Money Concepts Covered" : "Key Concepts Covered"}
+            </h3>
             <ul className="space-y-2">
               {data.concepts.map((c, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-secondary-foreground">

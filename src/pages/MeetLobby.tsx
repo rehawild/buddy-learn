@@ -10,6 +10,7 @@ export default function MeetLobby() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomCode = searchParams.get("room") || "";
+  const lessonParam = searchParams.get("lesson");
   const { role, user } = useAuth();
   const isTeacher = role === "teacher";
 
@@ -71,7 +72,10 @@ export default function MeetLobby() {
 
   const handleJoin = () => {
     // Don't stop tracks here — let the hook cleanup handle it on unmount
-    navigate(`/meet?room=${roomCode}`);
+    const dest = lessonParam
+      ? `/meet?room=${roomCode}&lesson=${lessonParam}`
+      : `/meet?room=${roomCode}`;
+    navigate(dest);
   };
 
   if (checking) {

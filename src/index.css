@@ -6,54 +6,54 @@
 
 @layer base {
   :root {
-    --background: 220 15% 13%;
-    --foreground: 210 20% 92%;
+    --background: 150 15% 13%;
+    --foreground: 145 20% 92%;
 
-    --card: 220 14% 17%;
-    --card-foreground: 210 20% 92%;
+    --card: 150 14% 17%;
+    --card-foreground: 145 20% 92%;
 
-    --popover: 220 14% 17%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 150 14% 17%;
+    --popover-foreground: 145 20% 92%;
 
-    --primary: 200 40% 55%;
-    --primary-foreground: 210 30% 98%;
+    --primary: 152 55% 42%;
+    --primary-foreground: 145 30% 98%;
 
-    --secondary: 220 12% 22%;
-    --secondary-foreground: 210 20% 85%;
+    --secondary: 150 12% 22%;
+    --secondary-foreground: 145 20% 85%;
 
-    --muted: 220 12% 20%;
-    --muted-foreground: 215 12% 55%;
+    --muted: 150 12% 20%;
+    --muted-foreground: 148 12% 55%;
 
     --accent: 28 90% 58%;
-    --accent-foreground: 220 15% 8%;
+    --accent-foreground: 150 15% 8%;
 
     --destructive: 0 72% 55%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 145 40% 98%;
 
-    --border: 220 12% 24%;
-    --input: 220 12% 24%;
-    --ring: 200 40% 55%;
+    --border: 150 12% 24%;
+    --input: 150 12% 24%;
+    --ring: 152 55% 42%;
 
     --radius: 0.75rem;
 
-    --buddy: 200 40% 55%;
-    --buddy-glow: 200 40% 55% / 0.25;
+    --buddy: 152 55% 42%;
+    --buddy-glow: 152 55% 42% / 0.25;
     --buddy-warm: 28 90% 58%;
-    --correct: 145 60% 45%;
+    --correct: 145 65% 55%;
     --incorrect: 0 72% 55%;
-    --meet-bar: 220 14% 11%;
-    --meet-surface: 220 14% 15%;
-    --slide-bg: 220 15% 96%;
-    --slide-fg: 220 20% 12%;
+    --meet-bar: 150 14% 11%;
+    --meet-surface: 150 14% 15%;
+    --slide-bg: 150 15% 96%;
+    --slide-fg: 150 20% 12%;
 
-    --sidebar-background: 220 14% 11%;
-    --sidebar-foreground: 210 20% 85%;
-    --sidebar-primary: 200 40% 55%;
-    --sidebar-primary-foreground: 210 30% 98%;
-    --sidebar-accent: 220 12% 22%;
-    --sidebar-accent-foreground: 210 20% 85%;
-    --sidebar-border: 220 12% 24%;
-    --sidebar-ring: 200 40% 55%;
+    --sidebar-background: 150 14% 11%;
+    --sidebar-foreground: 145 20% 85%;
+    --sidebar-primary: 152 55% 42%;
+    --sidebar-primary-foreground: 145 30% 98%;
+    --sidebar-accent: 150 12% 22%;
+    --sidebar-accent-foreground: 145 20% 85%;
+    --sidebar-border: 150 12% 24%;
+    --sidebar-ring: 152 55% 42%;
   }
 }
 
@@ -87,13 +87,13 @@
   }
 
   .slide-surface.theme-dark {
-    --slide-bg: 220 15% 10%;
-    --slide-fg: 210 20% 92%;
+    --slide-bg: 150 15% 10%;
+    --slide-fg: 145 20% 92%;
   }
 
   .slide-surface.theme-gradient {
-    background: linear-gradient(135deg, hsl(220 25% 14%), hsl(260 20% 22%));
-    color: hsl(210 20% 92%);
+    background: linear-gradient(135deg, hsl(150 25% 14%), hsl(160 20% 22%));
+    color: hsl(145 20% 92%);
   }
 
   .slide-surface.theme-warm {
@@ -102,8 +102,21 @@
   }
 
   .slide-surface.theme-ocean {
-    background: linear-gradient(135deg, hsl(200 50% 95%), hsl(210 60% 88%));
-    color: hsl(210 40% 12%);
+    background: linear-gradient(135deg, hsl(140 50% 95%), hsl(150 60% 88%));
+    color: hsl(150 40% 12%);
+  }
+
+  .slide-surface.theme-finance {
+    --slide-bg: 150 30% 10%;
+    --slide-fg: 150 20% 92%;
+    --primary: 152 55% 42%;
+    background: linear-gradient(135deg, hsl(150 30% 10%), hsl(160 25% 18%));
+    color: hsl(var(--slide-fg));
+  }
+
+  .finance-mode {
+    --primary: 152 55% 42%;
+    --primary-foreground: 0 0% 98%;
   }
 
   .buddy-bounce {

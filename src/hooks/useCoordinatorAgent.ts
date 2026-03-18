@@ -42,6 +42,8 @@ interface UseCoordinatorAgentParams {
   transcriptText?: string;
   /** Whether live transcript is listening */
   transcriptListening?: boolean;
+  /** Subject context for finance-specific AI prompting */
+  subject?: string;
 }
 
 export function useCoordinatorAgent({
@@ -56,6 +58,7 @@ export function useCoordinatorAgent({
   enabled,
   transcriptText = "",
   transcriptListening = false,
+  subject,
 }: UseCoordinatorAgentParams) {
   const [questionBank, setQuestionBank] = useState<SlideQuestionBank[] | null>(null);
   const [isPreGenerating, setIsPreGenerating] = useState(false);
@@ -154,6 +157,7 @@ export function useCoordinatorAgent({
           slides: slidePayload,
           difficulty,
           lessonTitle,
+          ...(subject && { subject }),
         };
 
         const { data, error } = await supabase.functions.invoke("buddy-ai", {
@@ -225,6 +229,7 @@ export function useCoordinatorAgent({
               lessonTitle,
               slideIndex: slideIdx,
               difficulty,
+              ...(subject && { subject }),
             },
           },
         });

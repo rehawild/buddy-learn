@@ -66,8 +66,13 @@ export default function MeetRoom() {
   const [freeBrowse, setFreeBrowse] = useState(false);
   const [localSectionIdx, setLocalSectionIdx] = useState(0);
 
-  // Presentation state
-  const [lessonIdx, setLessonIdx] = useState(0);
+  // Presentation state — initialise from ?lesson= URL param (demo mode only)
+  const [lessonIdx, setLessonIdx] = useState(() => {
+    const id = searchParams.get("lesson");
+    if (!id) return 0;
+    const idx = lessons.findIndex((l) => l.id === id);
+    return idx >= 0 ? idx : 0;
+  });
   const [sectionIdx, setSectionIdx] = useState(0);
   const [buddyEnabled, setBuddyEnabled] = useState(true);
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("easy");
@@ -156,6 +161,7 @@ export default function MeetRoom() {
     enabled: !isViewer && hasUploadedSlides === true,
     transcriptText: localTranscript,
     transcriptListening: transcriptIsListening,
+    subject: hasUploadedSlides ? undefined : lesson?.subject,
   });
 
   // ── AI Student Agent (students — always enabled for chat) ──
@@ -177,6 +183,7 @@ export default function MeetRoom() {
     fallbackLessonTitle: hasUploadedSlides
       ? (presentationTitle || "Presentation")
       : (lessons[lessonIdx]?.title || "Study Session"),
+    subject: hasUploadedSlides ? undefined : lessons[lessonIdx]?.subject,
   });
 
   // ── Engagement Tracker (students only) ──
@@ -250,6 +257,7 @@ export default function MeetRoom() {
         : 0;
     return {
       lessonTitle: slideTitle,
+      lessonSubject: lesson?.subject,
       correct: results.correct,
       total: results.total,
       concepts: results.concepts.slice(0, 3),
@@ -383,6 +391,14 @@ export default function MeetRoom() {
       feedbackPhase: "idle", ...overrides,
     });
   }, [isViewer, broadcast, lessonIdx, sectionIdx, activeQuestionIdx, buddyEnabled, difficulty]);
+
+  // Broadcast initial state once connected (so viewers sync lesson from URL param)
+  const initialBroadcastDone = useRef(false);
+  useEffect(() => {
+    if (initialBroadcastDone.current || isViewer || !isConnected) return;
+    initialBroadcastDone.current = true;
+    broadcastState();
+  }, [isConnected, isViewer, broadcastState]);
 
   // Clock
   const [time, setTime] = useState(new Date());
@@ -585,8 +601,10 @@ export default function MeetRoom() {
     );
   }
 
+  const isFinanceLesson = !hasUploadedSlides && lesson?.subject === "Finance";
+
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className={`h-screen flex flex-col bg-background${isFinanceLesson ? " finance-mode" : ""}`}>
       {/* Top bar */}
       <div className="h-14 bg-meet-bar border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
         <div className="flex-1 min-w-0">

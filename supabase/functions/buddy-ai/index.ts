@@ -1,8 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const AZURE_ENDPOINT =
-  "https://osvathrobert03-1965-resource.services.ai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-08-01-preview";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -80,22 +77,43 @@ Rules:
 - Never give away quiz answers directly. If asked, give a hint instead.
 - Match the energy of a helpful study partner, not a formal teacher.`;
 
-// ── Azure OpenAI call ──
+const BUDDY_CHAT_FINANCE_SYSTEM = `You are Catchy, a financial literacy tutor helping students build real money skills. You sit on top of their lesson slides and give sharp, practical guidance.
 
-async function callAzure(
+Your identity:
+- You are a knowledgeable friend who understands money — not a bank advisor, not a textbook.
+- You make finance feel approachable and immediately relevant to young people's lives.
+- You are direct, warm, and never condescending.
+
+Rules:
+- Only discuss personal finance concepts from the current slide.
+- Keep every response to 1-2 sentences — punchy and memorable.
+- Always ground concepts in real decisions students will face: first paycheque, rent, student debt, credit cards, first savings account.
+- Use concrete numbers: "If you put £50/month away at 7%..." not "compound interest grows over time."
+- Never use financial jargon without immediately explaining it in plain terms.
+- If asked something off-topic: redirect with energy — "Love the curiosity, but let's keep our money hats on! [redirect to current concept]."
+- Never give away quiz answers. Give a practical hint instead: "Think about what costs you can't skip no matter what."
+- Reinforce the mindset: small consistent habits beat big windfalls every time.`;
+
+// ── Groq API call (OpenAI-compatible) ──
+
+const GROQ_API = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.1-8b-instant";
+
+async function callGroq(
   systemPrompt: string,
   userMessage: string,
   apiKey: string,
   temperature = 0.7,
   maxTokens = 2048,
 ): Promise<string> {
-  const res = await fetch(AZURE_ENDPOINT, {
+  const res = await fetch(GROQ_API, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
+      model: GROQ_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
@@ -107,7 +125,7 @@ async function callAzure(
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Azure API error ${res.status}: ${errText}`);
+    throw new Error(`Groq API error ${res.status}: ${errText}`);
   }
 
   const data = await res.json();
@@ -117,21 +135,25 @@ async function callAzure(
 // ── Handlers ──
 
 async function handlePreGenerate(
-  payload: { slides: { index: number; title: string; content: string }[]; difficulty: string; lessonTitle: string },
+  payload: { slides: { index: number; title: string; content: string }[]; difficulty: string; lessonTitle: string; subject?: string },
   apiKey: string,
 ) {
   const slideDescriptions = payload.slides
     .map((s) => `--- Slide ${s.index + 1}: "${s.title}" ---\n${s.content}`)
     .join("\n\n");
 
+  const financeHint = payload.subject === "Finance"
+    ? "\nFinance context: Focus questions on practical money decisions, real numbers, and concepts students will use in everyday life (budgeting, credit, saving, investing). Avoid abstract theory."
+    : "";
+
   const userMessage = `Lesson: "${payload.lessonTitle}"
-Difficulty: ${payload.difficulty}
+Difficulty: ${payload.difficulty}${financeHint}
 
 Generate questions for these slides:
 
 ${slideDescriptions}`;
 
-  const raw = await callAzure(QUESTION_GEN_SYSTEM, userMessage, apiKey, 0.4, 4096);
+  const raw = await callGroq(QUESTION_GEN_SYSTEM, userMessage, apiKey, 0.4, 4096);
 
   // Parse JSON — handle potential markdown fences
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -147,9 +169,14 @@ async function handleBuddyChat(
     slideTitle: string;
     lessonTitle: string;
     conversationHistory: { role: string; content: string }[];
+    subject?: string;
   },
   apiKey: string,
 ) {
+  const systemPrompt = payload.subject === "Finance"
+    ? BUDDY_CHAT_FINANCE_SYSTEM
+    : BUDDY_CHAT_SYSTEM;
+
   const context = `Current lesson: "${payload.lessonTitle}"
 Current slide: "${payload.slideTitle}"
 Slide content: ${payload.slideContent}`;
@@ -166,7 +193,7 @@ ${historyStr}
 
 Student says: ${payload.message}`;
 
-  const reply = await callAzure(BUDDY_CHAT_SYSTEM, userMessage, apiKey, 0.7, 256);
+  const reply = await callGroq(systemPrompt, userMessage, apiKey, 0.7, 256);
 
   return { reply };
 }
@@ -179,20 +206,25 @@ async function handleTranscriptQuestions(
     lessonTitle: string;
     slideIndex: number;
     difficulty: string;
+    subject?: string;
   },
   apiKey: string,
 ) {
+  const financeHint = payload.subject === "Finance"
+    ? "\nFinance context: Focus on practical money decisions and real-world examples the teacher mentioned. Ground questions in everyday financial scenarios."
+    : "";
+
   const userMessage = `Lesson: "${payload.lessonTitle}"
 Current slide (${payload.slideIndex + 1}): "${payload.slideTitle}"
 Slide content: ${payload.slideContent}
-Difficulty: ${payload.difficulty}
+Difficulty: ${payload.difficulty}${financeHint}
 
 Teacher's spoken transcript:
 ${payload.transcript}
 
 Generate 1-3 questions about concepts the teacher emphasized verbally that go beyond the slide text.`;
 
-  const raw = await callAzure(TRANSCRIPT_QUESTION_SYSTEM, userMessage, apiKey, 0.5, 2048);
+  const raw = await callGroq(TRANSCRIPT_QUESTION_SYSTEM, userMessage, apiKey, 0.5, 2048);
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   const questions = JSON.parse(cleaned);
 
@@ -234,7 +266,7 @@ Buddy chat interactions: ${payload.buddyInteractions}
 Tab switches: ${payload.tabSwitchCount}
 Idle periods: ${payload.idleCount}`;
 
-  const assessment = await callAzure(STUDENT_ASSESSMENT_SYSTEM, userMessage, apiKey, 0.6, 256);
+  const assessment = await callGroq(STUDENT_ASSESSMENT_SYSTEM, userMessage, apiKey, 0.6, 256);
   return { assessment: assessment.trim() };
 }
 
@@ -247,9 +279,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get("AZURE_AI_KEY");
+    const apiKey = Deno.env.get("GROQ_API_KEY");
     if (!apiKey) {
-      throw new Error("AZURE_AI_KEY not configured");
+      throw new Error("GROQ_API_KEY must be set in Edge Function secrets");
     }
 
     const body = await req.json();

@@ -54,6 +54,7 @@ export interface PreGeneratePayload {
   slides: { index: number; title: string; content: string }[];
   difficulty: "easy" | "medium" | "hard";
   lessonTitle: string;
+  subject?: string;
 }
 
 export interface BuddyChatPayload {
@@ -62,6 +63,7 @@ export interface BuddyChatPayload {
   slideTitle: string;
   lessonTitle: string;
   conversationHistory: { role: "user" | "assistant"; content: string }[];
+  subject?: string;
 }
 
 export interface AgentRequest {

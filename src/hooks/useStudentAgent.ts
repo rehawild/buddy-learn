@@ -17,6 +17,7 @@ interface UseStudentAgentParams {
   currentSlideIndex: number;
   enabled: boolean;
   fallbackLessonTitle?: string;
+  subject?: string;
 }
 
 export interface StudentAgentState {
@@ -34,6 +35,7 @@ export function useStudentAgent({
   currentSlideIndex,
   enabled,
   fallbackLessonTitle,
+  subject,
 }: UseStudentAgentParams) {
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
   const [sessionContext, setSessionContext] = useState<AgentInitEvent | null>(null);
@@ -164,6 +166,7 @@ export function useStudentAgent({
           slideTitle,
           lessonTitle,
           conversationHistory: updatedHistory,
+          ...(subject && { subject }),
         };
 
         const { data, error } = await supabase.functions.invoke("buddy-ai", {
