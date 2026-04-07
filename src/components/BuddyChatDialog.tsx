@@ -48,10 +48,10 @@ export default function BuddyChatDialog({
           {/* Header */}
           <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/50">
             <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-buddy flex-shrink-0">
-              <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
+              <img src={mascotImg} alt="Finny" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground leading-tight">Ask Catchy</p>
+              <p className="text-sm font-semibold text-foreground leading-tight">Ask Finny</p>
               <p className="text-[11px] text-muted-foreground leading-tight">Chat about the lesson</p>
             </div>
             <button

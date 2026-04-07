@@ -130,8 +130,8 @@ export default function MeetHome() {
       <header className="h-16 flex items-center justify-between px-6 border-b border-border">
         <div className="flex items-center gap-3">
           <Video className="w-6 h-6 text-primary" />
-          {/* Changed "Study Meet" to "Catchy" */}
-          <span className="text-lg font-semibold text-foreground">Catchy</span>
+          {/* Changed "Study Meet" to "Finny" */}
+          <span className="text-lg font-semibold text-foreground">Finny</span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => navigate("/learn")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -167,9 +167,9 @@ export default function MeetHome() {
           <div className="space-y-3">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
               {isTeacher ? (
-                <>Present & engage.<br /><span className="text-primary">With Catchy.</span></>
+                <>Present & engage.<br /><span className="text-primary">With Finny.</span></>
               ) : (
-                <>Join & learn.<br /><span className="text-primary">With Catchy.</span></>
+                <>Join & learn.<br /><span className="text-primary">With Finny.</span></>
               )}
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
@@ -258,8 +258,8 @@ export default function MeetHome() {
         <div className="relative w-full max-w-lg">
           <div className="aspect-[4/3] rounded-2xl bg-card border border-border overflow-hidden shadow-2xl">
             <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-4">
-              <div className="w-64 h-64 rounded-2xl overflow-hidden shrink-0 ring-1 ring-border/50">
-                <img src="/hero-anim.gif" alt="Catchy" className="w-full h-full object-cover scale-[1.35]" />
+              <div className="w-64 h-64 rounded-2xl overflow-hidden relative shrink-0 ring-1 ring-border/50">
+                <img src="/hero-anim.gif" alt="Finny" className="absolute top-1/2 left-1/2 w-[220%] max-w-none -translate-x-1/2 -translate-y-1/2" />
               </div>
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-foreground">
@@ -267,7 +267,7 @@ export default function MeetHome() {
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
                   {isTeacher
-                    ? "Upload a PDF or PPTX to start presenting with Catchy active"
+                    ? "Upload a PDF or PPTX to start presenting with Finny active"
                     : "Enter the room code shared by your teacher to join the session"}
                 </p>
               </div>

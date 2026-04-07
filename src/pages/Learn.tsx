@@ -41,7 +41,7 @@ export default function Learn() {
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
           <Video className="w-6 h-6 text-primary" />
-          <span className="text-lg font-semibold text-foreground">Catchy</span>
+          <span className="text-lg font-semibold text-foreground">Finny</span>
         </button>
         <div className="flex items-center gap-3">
           {user ? (
@@ -70,7 +70,7 @@ export default function Learn() {
           </div>
           <h1 className="text-4xl font-bold text-foreground tracking-tight">Browse lessons</h1>
           <p className="text-lg text-muted-foreground">
-            Pick a course and teach it live with Catchy — no upload needed.
+            Pick a course and teach it live with Finny — no upload needed.
           </p>
         </div>
 

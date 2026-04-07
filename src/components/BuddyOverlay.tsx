@@ -181,10 +181,10 @@ export default function BuddyOverlay({
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/50">
               <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-buddy flex-shrink-0">
-                <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300" />
+                <img src={moodSrc || mascotImg} alt="Finny" className="w-full h-full object-cover transition-opacity duration-300" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground leading-tight">Catchy</p>
+                <p className="text-sm font-semibold text-foreground leading-tight">Finny</p>
                 <p className="text-[11px] text-muted-foreground leading-tight">
                   {phase === "question" ? "Quick check!" : isCorrect ? "Nice work!" : "Keep trying!"}
                 </p>
@@ -292,7 +292,7 @@ export default function BuddyOverlay({
             }}
             className={`w-16 h-16 rounded-full overflow-hidden border-2 border-buddy cursor-grab active:cursor-grabbing hover:scale-110 transition-transform shadow-lg touch-none select-none ${pinned || dragging ? "" : "buddy-float"}`}
           >
-            <img src={moodSrc || mascotImg} alt="Catchy" className="w-full h-full object-cover transition-opacity duration-300 pointer-events-none" draggable={false} />
+            <img src={moodSrc || mascotImg} alt="Finny" className="w-full h-full object-cover transition-opacity duration-300 pointer-events-none" draggable={false} />
           </div>
           <button
             onClick={() => setPinned((p) => !p)}

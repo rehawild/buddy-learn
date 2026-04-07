@@ -67,9 +67,9 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg overflow-hidden ring-1 ring-primary/20">
-              <img src={mascotImg} alt="Catchy" className="w-full h-full object-cover" />
+              <img src={mascotImg} alt="Finny" className="w-full h-full object-cover" />
             </div>
-            <span className="text-base font-bold tracking-tight text-primary">Catchy</span>
+            <span className="text-base font-bold tracking-tight text-primary">Finny</span>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
@@ -111,7 +111,7 @@ export default function LandingPage() {
                   <span className="italic font-light">stick.</span>
                 </h1>
                 <p className="text-lg text-muted-foreground leading-relaxed max-w-md">
-                  Catchy keeps classrooms engaged with AI-powered micro-questions. Launch the Financial Literacy 101 course in seconds — no slides to upload.
+                  Finny keeps classrooms engaged with AI-powered micro-questions. Launch the Financial Literacy 101 course in seconds — no slides to upload.
                 </p>
               </div>
 
@@ -168,8 +168,8 @@ export default function LandingPage() {
 
                 {/* Mascot */}
                 <div className="px-6 py-5 flex items-center gap-6">
-                  <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-emerald-500/20">
-                    <img src="/hero-anim.gif" alt="Catchy" className="w-full h-full object-cover scale-[1.35]" />
+                  <div className="w-24 h-24 rounded-xl overflow-hidden relative flex-shrink-0 ring-1 ring-emerald-500/20">
+                    <img src="/hero-anim.gif" alt="Finny" className="absolute top-1/2 left-1/2 w-[220%] max-w-none -translate-x-1/2 -translate-y-1/2" />
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -236,7 +236,7 @@ export default function LandingPage() {
               {
                 icon: Brain,
                 title: "AI Micro-Questions",
-                desc: "Catchy surfaces contextual quiz questions at the right moments, reinforcing concepts as they're taught in real-time.",
+                desc: "Finny surfaces contextual quiz questions at the right moments, reinforcing concepts as they're taught in real-time.",
                 accent: "primary",
               },
               {
@@ -296,7 +296,7 @@ export default function LandingPage() {
               From sign-up to first lesson in 60 seconds
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              No slides to prepare. No lesson plan needed. Catchy has everything built in.
+              No slides to prepare. No lesson plan needed. Finny has everything built in.
             </p>
           </div>
 
@@ -318,7 +318,7 @@ export default function LandingPage() {
                   step: "02",
                   icon: Zap,
                   title: "Hit 'Financial Literacy 101'",
-                  desc: "One button on your home screen. Catchy generates a room code instantly.",
+                  desc: "One button on your home screen. Finny generates a room code instantly.",
                   color: "text-emerald-400",
                   bg: "bg-emerald-500/10 border-emerald-500/20",
                 },
@@ -326,7 +326,7 @@ export default function LandingPage() {
                   step: "03",
                   icon: Sparkles,
                   title: "Students join & learn",
-                  desc: "Share the 6-digit code. Catchy runs interactive questions automatically throughout.",
+                  desc: "Share the 6-digit code. Finny runs interactive questions automatically throughout.",
                   color: "text-primary",
                   bg: "bg-primary/10 border-primary/20",
                 },
@@ -397,7 +397,7 @@ export default function LandingPage() {
                 {[
                   "Join with a 6-character code — nothing to install",
                   "Answer quick questions to reinforce concepts",
-                  "Chat with Catchy for instant explanations",
+                  "Chat with Finny for instant explanations",
                   "Track your accuracy and session progress",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm text-secondary-foreground">
@@ -414,8 +414,8 @@ export default function LandingPage() {
       {/* Footer CTA */}
       <section className="py-24 px-6 relative z-10 bg-card/40 border-t border-border/50" data-animate id="cta">
         <div className={`max-w-2xl mx-auto text-center space-y-6 ${sectionClass("cta")}`}>
-          <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden ring-2 ring-primary/20 shadow-xl shadow-primary/10">
-            <img src="/hero-anim.gif" alt="Catchy" className="w-full h-full object-cover scale-[1.35]" />
+          <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden relative ring-2 ring-primary/20 shadow-xl shadow-primary/10">
+            <img src="/hero-anim.gif" alt="Finny" className="absolute top-1/2 left-1/2 w-[220%] max-w-none -translate-x-1/2 -translate-y-1/2" />
           </div>
           <div className="space-y-3">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -445,7 +445,7 @@ export default function LandingPage() {
       <footer className="py-8 px-6 border-t border-border relative z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <span className="text-sm text-muted-foreground font-mono">
-            © {new Date().getFullYear()} Catchy
+            © {new Date().getFullYear()} Finny
           </span>
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded overflow-hidden opacity-70">
