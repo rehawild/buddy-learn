@@ -169,7 +169,7 @@ export default function LandingPage() {
                 {/* Mascot */}
                 <div className="px-6 py-5 flex items-center gap-6">
                   <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-emerald-500/20">
-                    <img src="/hero-anim.gif" alt="Catchy" className="w-full h-full object-cover" />
+                    <img src="/hero-anim.gif" alt="Catchy" className="w-full h-full object-cover scale-[1.35]" />
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -415,7 +415,7 @@ export default function LandingPage() {
       <section className="py-24 px-6 relative z-10 bg-card/40 border-t border-border/50" data-animate id="cta">
         <div className={`max-w-2xl mx-auto text-center space-y-6 ${sectionClass("cta")}`}>
           <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden ring-2 ring-primary/20 shadow-xl shadow-primary/10">
-            <img src="/hero-anim.gif" alt="Catchy" className="w-full h-full object-cover" />
+            <img src="/hero-anim.gif" alt="Catchy" className="w-full h-full object-cover scale-[1.35]" />
           </div>
           <div className="space-y-3">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">

@@ -258,7 +258,9 @@ export default function MeetHome() {
         <div className="relative w-full max-w-lg">
           <div className="aspect-[4/3] rounded-2xl bg-card border border-border overflow-hidden shadow-2xl">
             <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-4">
-              <img src="/hero-anim.gif" alt="Catchy" className="w-64 h-64 object-contain" />
+              <div className="w-64 h-64 rounded-2xl overflow-hidden shrink-0 ring-1 ring-border/50">
+                <img src="/hero-anim.gif" alt="Catchy" className="w-full h-full object-cover scale-[1.35]" />
+              </div>
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-foreground">
                   {isTeacher ? "Upload & present" : "Enter the room code"}
