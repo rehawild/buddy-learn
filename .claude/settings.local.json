@@ -1,10 +1,12 @@
 {
-  "disabledMcpjsonServers": [
-    "azure-mcp"
-  ],
   "permissions": {
     "allow": [
-      "Bash(grep -n \"^\\\\s*{\\\\s*$\\\\|id:\\\\|title:\\\\|subject:\\\\|icon:\" /c/Users/Reha/Desktop/buddy-learn/src/data/lessons.ts)"
+      "Bash(grep -n \"^\\\\s*{\\\\s*$\\\\|id:\\\\|title:\\\\|subject:\\\\|icon:\" /c/Users/Reha/Desktop/buddy-learn/src/data/lessons.ts)",
+      "Bash(cat /c/Users/Reha/Desktop/buddy-learn/.env*)",
+      "Bash(wc -l /c/Users/Reha/Desktop/buddy-learn/src/pages/*.tsx)"
     ]
-  }
+  },
+  "disabledMcpjsonServers": [
+    "azure-mcp"
+  ]
 }

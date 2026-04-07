@@ -289,9 +289,9 @@ export function useCoordinatorAgent({
             next.add(slideBank.slideIndex);
             return next;
           });
-
-          // Dispatch all questions for this slide
-          dispatchAllForSlide(slideBank);
+          // NOTE: We intentionally do NOT auto-dispatch here.
+          // The teacher sees the questions via SlideQuestionSuggestions and
+          // manually sends them. Coverage just updates the status indicator.
         }
       }
     },

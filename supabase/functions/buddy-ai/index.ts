@@ -134,12 +134,21 @@ async function callGroq(
 
 // ── Handlers ──
 
+const MAX_SLIDES_PER_BATCH = 8;  // keep total tokens under Groq free-tier TPM
+const MAX_SLIDE_CONTENT_CHARS = 300; // ~75 tokens per slide
+const MAX_TRANSCRIPT_CHARS = 1200;   // ~300 tokens
+
 async function handlePreGenerate(
   payload: { slides: { index: number; title: string; content: string }[]; difficulty: string; lessonTitle: string; subject?: string },
   apiKey: string,
 ) {
-  const slideDescriptions = payload.slides
-    .map((s) => `--- Slide ${s.index + 1}: "${s.title}" ---\n${s.content}`)
+  // Truncate slide content and limit batch size to stay within TPM
+  const slidesToProcess = payload.slides.slice(0, MAX_SLIDES_PER_BATCH);
+  const slideDescriptions = slidesToProcess
+    .map((s) => {
+      const content = (s.content || "").slice(0, MAX_SLIDE_CONTENT_CHARS);
+      return `--- Slide ${s.index + 1}: "${s.title}" ---\n${content}`;
+    })
     .join("\n\n");
 
   const financeHint = payload.subject === "Finance"
@@ -153,7 +162,7 @@ Generate questions for these slides:
 
 ${slideDescriptions}`;
 
-  const raw = await callGroq(QUESTION_GEN_SYSTEM, userMessage, apiKey, 0.4, 4096);
+  const raw = await callGroq(QUESTION_GEN_SYSTEM, userMessage, apiKey, 0.4, 2048);
 
   // Parse JSON — handle potential markdown fences
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -214,13 +223,17 @@ async function handleTranscriptQuestions(
     ? "\nFinance context: Focus on practical money decisions and real-world examples the teacher mentioned. Ground questions in everyday financial scenarios."
     : "";
 
+  // Truncate transcript to avoid TPM overflow
+  const truncatedTranscript = (payload.transcript || "").slice(-MAX_TRANSCRIPT_CHARS);
+  const truncatedSlideContent = (payload.slideContent || "").slice(0, MAX_SLIDE_CONTENT_CHARS);
+
   const userMessage = `Lesson: "${payload.lessonTitle}"
 Current slide (${payload.slideIndex + 1}): "${payload.slideTitle}"
-Slide content: ${payload.slideContent}
+Slide content: ${truncatedSlideContent}
 Difficulty: ${payload.difficulty}${financeHint}
 
-Teacher's spoken transcript:
-${payload.transcript}
+Teacher's spoken transcript (recent):
+${truncatedTranscript}
 
 Generate 1-3 questions about concepts the teacher emphasized verbally that go beyond the slide text.`;
 

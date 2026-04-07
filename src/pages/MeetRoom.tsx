@@ -134,6 +134,18 @@ export default function MeetRoom() {
       });
   }, [roomCode]);
 
+  // ── Derived slide data (needed by AI hooks below) ──
+  const lesson = hasUploadedSlides ? null : lessons[lessonIdx];
+  const totalSlides = hasUploadedSlides ? uploadedSlides!.length : (lesson?.sections.length ?? 0);
+  const displayIdx = isViewer && freeBrowse ? localSectionIdx : sectionIdx;
+  const section = hasUploadedSlides ? null : lesson?.sections[displayIdx] ?? null;
+  const isLastSection = displayIdx >= totalSlides - 1;
+  const presenterSlide = sectionIdx;
+
+  const slideTitle = hasUploadedSlides
+    ? (presentationTitle || "Presentation")
+    : (lesson?.title || "Study Session");
+
   // ── AI Coordinator Agent (teacher with uploaded slides) ──
   const {
     questionBank,
@@ -236,17 +248,7 @@ export default function MeetRoom() {
     setPresenting(true);
   }, [isViewer, remoteState, freeBrowse, hasUploadedSlides]);
 
-  // Demo lesson data (only when no uploaded slides)
-  const lesson = hasUploadedSlides ? null : lessons[lessonIdx];
-  const totalSlides = hasUploadedSlides ? uploadedSlides!.length : (lesson?.sections.length ?? 0);
-  const displayIdx = isViewer && freeBrowse ? localSectionIdx : sectionIdx;
-  const section = hasUploadedSlides ? null : lesson?.sections[displayIdx] ?? null;
-  const isLastSection = displayIdx >= totalSlides - 1;
-  const presenterSlide = sectionIdx;
-
-  const slideTitle = hasUploadedSlides
-    ? (presentationTitle || "Presentation")
-    : (lesson?.title || "Study Session");
+  // (lesson/section/totalSlides/displayIdx/slideTitle are declared above the AI hooks)
 
   // ── Build enriched recap state ──
   const buildRecapState = useCallback(() => {
@@ -909,7 +911,7 @@ export default function MeetRoom() {
                           enabled={buddyEnabled}
                           onAnswer={handleAnswer}
                           onDismiss={handleDismiss}
-                          readOnly={!hasUploadedSlides}
+                          readOnly={false}
                           questionSource={effectiveQuestion?.source === "transcript" ? "transcript" : (effectiveQuestion && hasUploadedSlides ? "slides" : undefined)}
                           mood={buddyMood}
                           moodSrc={buddyMoodSrc}

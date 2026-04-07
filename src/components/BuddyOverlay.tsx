@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { X, Pin, PinOff } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Question } from "@/data/lessons";
 import type { BuddyMood } from "@/hooks/useBuddyMood";
 import mascotImg from "@/assets/catchy.png";
@@ -208,7 +207,7 @@ export default function BuddyOverlay({
             </div>
 
             {/* Question content */}
-            <ScrollArea className="max-h-48">
+            <div className="max-h-48 overflow-y-auto pointer-events-auto">
               <div className="p-3 space-y-2">
                 {question.highlight && (
                   <div className="text-xs text-muted-foreground px-1">
@@ -277,7 +276,7 @@ export default function BuddyOverlay({
 
                 <div ref={scrollAnchorRef} />
               </div>
-            </ScrollArea>
+            </div>
           </div>
         )}
 
