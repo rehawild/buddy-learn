@@ -1,4 +1,4 @@
-import type { SlideTheme } from "@/components/SlideRenderer";
+export type SlideTheme = "default" | "dark" | "gradient" | "warm" | "ocean" | "finance";
 
 export interface Question {
   highlight: string;

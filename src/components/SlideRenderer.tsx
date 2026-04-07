@@ -1,7 +1,5 @@
 import { useRef, useEffect, useState, type ReactNode } from "react";
-import type { Section } from "@/data/lessons";
-
-export type SlideTheme = "default" | "dark" | "gradient" | "warm" | "ocean" | "finance";
+import type { Section, SlideTheme } from "@/data/lessons";
 
 interface SlideRendererProps {
   section: Section;

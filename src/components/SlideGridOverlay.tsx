@@ -1,6 +1,5 @@
-import type { Section } from "@/data/lessons";
+import type { Section, SlideTheme } from "@/data/lessons";
 import SlideRenderer from "./SlideRenderer";
-import type { SlideTheme } from "./SlideRenderer";
 import { X } from "lucide-react";
 
 interface SlideGridOverlayProps {
